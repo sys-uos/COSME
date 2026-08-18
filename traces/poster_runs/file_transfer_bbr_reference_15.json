@@ -1,0 +1,55 @@
+{
+  "name": "file_transfer_bbr_reference_15",
+  "app": "file_transfer",
+  "arm": "reference",
+  "seed": 8191,
+  "duration_s_requested": null,
+  "size_gb": 1.0,
+  "cc": "bbr",
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": 12.0,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 8191
+  },
+  "qdisc_before": "qdisc netem 827d: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "real_elapsed_s": 33.7,
+  "job": {
+    "status": "done",
+    "app": "file_transfer",
+    "started_at": 1786214503.084213,
+    "duration_s": 27.98603,
+    "size_bytes": 1073741824,
+    "throughput_bps": 306936512,
+    "http_code": 200,
+    "tcp_retransmits": null,
+    "congestion_control": "bbr"
+  },
+  "qoe": {
+    "duration_s": 27.98603,
+    "tcp_retransmits": null,
+    "throughput_mbps": 306.936512
+  },
+  "app_stats_n_received": 46,
+  "qdisc_after": "qdisc netem 827d: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "scenario_status": {
+    "id": "ad6c5b6d-6b74-46dd-ad25-607d09431d87",
+    "elapsed_s": 33.31164216995239,
+    "duration_s": 659.99,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 2,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit"
+    ],
+    "last_loss_command": null,
+    "playback_lag_s": 0.07,
+    "playback_ticks_skipped": 0,
+    "playback_ticks_total": 2,
+    "start_time": 1786214499.9603958,
+    "speed": 1.0
+  }
+}

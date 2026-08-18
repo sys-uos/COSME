@@ -1,0 +1,1575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>COSME — Composable Orchestrated Starlink Mobility Emulation</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; background:#f4f6f8; }
+  .tile { background:#fff; border:1px solid #e2e5e9; border-radius:10px; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  #map { height: 190px; border-radius: 10px; }
+  .strip { height: 16px; position: relative; background:#eef0f3; border-radius:4px; overflow:hidden; }
+  .strip .bar { position:absolute; top:0; bottom:0; background:#dc2626; }
+  .scrollbar-thin::-webkit-scrollbar{width:6px;height:6px}
+  .scrollbar-thin::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+  /* Chart axis text (drawLineChart) -- kept tiny/muted so it reads as a
+     scale reference, not competing with the data lines themselves. */
+  .chart-axis { fill: #94a3b8; font-size: 8.5px; font-family: ui-monospace, monospace; }
+  .chart-axis-title { fill: #64748b; font-size: 8.5px; font-family: ui-sans-serif, system-ui; }
+</style>
+</head>
+<body class="text-slate-900">
+<div class="h-screen w-screen flex flex-col overflow-hidden">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-4 py-1.5 bg-white border-b border-slate-200 shrink-0">
+    <div class="flex items-baseline gap-2">
+      <h1 class="text-lg font-bold tracking-tight">COSME</h1>
+      <span class="text-xs text-slate-500">Composable Orchestrated Starlink Mobility Emulation — SIGCOMM'26 Demo</span>
+    </div>
+    <div class="flex items-center gap-3 text-xs">
+      <span id="conn-status" class="px-2 py-1 rounded-full bg-slate-100 text-slate-600">connecting…</span>
+      <span id="sim-clock" class="mono text-slate-500">t = 0.0s / 0.0s</span>
+      <span id="system-health-badge" class="px-2 py-1 rounded-full bg-slate-100 text-slate-500" title="Container health">–</span>
+      <button id="reset-containers-btn" class="px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50" title="Hard reset: docker restart cosme-client/cosme-server/cosme-probe. Use only if something is actually stuck -- for a wrong scenario/showcase, use Stop instead.">Reset containers</button>
+    </div>
+  </header>
+
+  <!-- Orphaned-run banner: a scenario/showcase's id previously only ever lived in the browser
+       tab that started it (no persistence) -- reload the page, open a new tab, or come back
+       later, and there was no way to even discover a run was still going, let alone stop it.
+       GET /api/system/active-run (polled below) finds it regardless of which tab started it. -->
+  <div id="orphan-run-banner" class="hidden shrink-0 px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-800">
+    <span id="orphan-run-text"></span>
+    <button id="orphan-run-stop-btn" class="px-2 py-1 rounded bg-amber-600 text-white font-semibold hover:bg-amber-700 shrink-0">Stop it</button>
+  </div>
+
+  <!-- Body: two panes -->
+  <main class="flex-1 grid grid-cols-2 gap-2 p-2 overflow-hidden">
+
+    <!-- LEFT PANE: overflow-y-auto is a defensive fallback, not the primary fix --
+         tile sizes below are trimmed to fit a 1920x1080 viewport at 100% zoom with
+         headroom to spare (verified via headless-browser measurement), but this
+         still lets content scroll instead of silently clipping if some browser
+         chrome/OS panel eats into the available height. -->
+    <section class="flex flex-col gap-2 overflow-y-auto scrollbar-thin">
+
+      <!-- Scenario config -->
+      <div class="tile p-2 shrink-0">
+        <h2 class="text-sm font-semibold mb-1">Scenario configuration</h2>
+
+        <!-- Route mode tabs -->
+        <div class="flex gap-1 mb-2 text-xs">
+          <button id="tab-real-drive" class="route-tab px-2 py-1 rounded-t border border-b-0 font-semibold bg-white">Real drive</button>
+          <button id="tab-custom-route" class="route-tab px-2 py-1 rounded-t border border-b-0 text-slate-500">Simulate custom route (ObLoS live)</button>
+        </div>
+
+        <div id="panel-real-drive" class="text-xs mb-2">
+          <label class="flex flex-col gap-1">
+            Route / drive (real Osnabrück↔Hannover measurement)
+            <select id="drive-select" class="border rounded px-2 py-1"></select>
+          </label>
+        </div>
+
+        <div id="panel-custom-route" class="text-xs mb-2 hidden space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="flex flex-col gap-1">
+              <span>Start by name <span class="text-slate-400">(address / city, geocoded)</span></span>
+              <div class="flex gap-1">
+                <input id="start-name" type="text" placeholder="e.g. Osnabrück" class="border rounded px-2 py-1 w-full" />
+                <button id="find-start" class="border rounded px-2 shrink-0" title="Look up coordinates">🔎</button>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span>End by name</span>
+              <div class="flex gap-1">
+                <input id="end-name" type="text" placeholder="e.g. Hannover Hauptbahnhof" class="border rounded px-2 py-1 w-full" />
+                <button id="find-end" class="border rounded px-2 shrink-0" title="Look up coordinates">🔎</button>
+              </div>
+            </div>
+          </div>
+          <div id="geocode-results" class="hidden text-[11px] border rounded p-1.5 bg-slate-50 space-y-0.5"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="flex flex-col gap-1">
+              <span>Start (lat, lon)</span>
+              <div class="flex gap-1">
+                <input id="start-lat" type="number" step="0.0001" placeholder="lat" class="border rounded px-2 py-1 w-full" />
+                <input id="start-lon" type="number" step="0.0001" placeholder="lon" class="border rounded px-2 py-1 w-full" />
+                <button id="pick-start" class="border rounded px-2 shrink-0" title="Click the map to set">📍</button>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span>End (lat, lon)</span>
+              <div class="flex gap-1">
+                <input id="end-lat" type="number" step="0.0001" placeholder="lat" class="border rounded px-2 py-1 w-full" />
+                <input id="end-lon" type="number" step="0.0001" placeholder="lon" class="border rounded px-2 py-1 w-full" />
+                <button id="pick-end" class="border rounded px-2 shrink-0" title="Click the map to set">📍</button>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="simulate-route-btn" class="bg-slate-700 text-white rounded px-3 py-1.5 font-semibold hover:bg-slate-800">Simulate route (OSRM + Overpass)</button>
+            <span id="simulate-status" class="text-slate-500"></span>
+          </div>
+          <p class="text-[10px] text-slate-400">Uses the self-hosted whole-Germany OSRM instance (see README) and the public Overpass API (rate-limited — results are cached once computed). Geocoding via Nominatim, Germany-limited, also cached.</p>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 text-xs">
+          <label class="flex flex-col gap-1">Nominal download (Mbit/s)
+            <input id="nominal-dl" type="number" value="150" class="border rounded px-2 py-1" />
+          </label>
+          <label class="flex flex-col gap-1">Nominal upload (Mbit/s)
+            <input id="nominal-ul" type="number" value="15" class="border rounded px-2 py-1" />
+          </label>
+          <label class="flex flex-col gap-1">Playback speed
+            <select id="speed-select" class="border rounded px-2 py-1">
+              <option value="1">1x (real time)</option>
+              <option value="10" selected>10x</option>
+              <option value="30">30x</option>
+              <option value="60">60x</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1">netem update interval
+            <select id="update-interval-select" class="border rounded px-2 py-1">
+              <option value="1.0" selected>1s (min. required)</option>
+              <option value="0.5">0.5s</option>
+              <option value="0.25">0.25s</option>
+              <option value="0.1">0.1s</option>
+            </select>
+          </label>
+          <div class="col-span-3 flex flex-col gap-1">
+            <span>Weather</span>
+            <div class="flex gap-1" id="weather-buttons">
+              <button data-mode="real_dwd" class="weather-btn flex-1 border rounded px-2 py-1 bg-blue-600 text-white">Real DWD</button>
+              <button data-mode="dry" class="weather-btn flex-1 border rounded px-2 py-1">Dry</button>
+              <button data-mode="light" class="weather-btn flex-1 border rounded px-2 py-1">Light rain</button>
+              <button data-mode="moderate" class="weather-btn flex-1 border rounded px-2 py-1">Moderate rain</button>
+              <button data-mode="heavy" class="weather-btn flex-1 border rounded px-2 py-1">Heavy rain</button>
+            </div>
+          </div>
+          <label class="flex flex-col gap-1">TCP congestion control
+            <select id="cc-select" class="border rounded px-2 py-1">
+              <option value="cubic" selected>Cubic</option>
+              <option value="bbr">BBR</option>
+              <option value="reno">Reno</option>
+            </select>
+          </label>
+          <div class="col-span-4 flex items-end gap-2">
+            <button id="start-btn" class="flex-1 bg-blue-600 text-white rounded px-3 py-2 font-semibold hover:bg-blue-700">Start emulation run</button>
+            <button id="stop-btn" class="hidden bg-red-600 text-white rounded px-3 py-2 font-semibold hover:bg-red-700">Stop</button>
+            <button id="restart-btn" class="hidden bg-slate-600 text-white rounded px-3 py-2 font-semibold hover:bg-slate-700" title="Re-run the exact same scenario (same seed) again">Restart (same run)</button>
+          </div>
+          <div class="col-span-4 flex items-center gap-2 text-[11px] text-slate-500">
+            <label class="flex items-center gap-1 cursor-pointer hover:text-slate-700" title="Replay a previously-exported run's exact composed trace (see Export results in the run summary)">
+              <span class="border rounded px-2 py-1">Import exported run…</span>
+              <input id="import-scenario-file" type="file" accept="application/json" class="hidden" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="tile p-2 shrink-0">
+        <div id="map"></div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="tile p-2 flex-1 overflow-hidden flex flex-col min-h-[120px]">
+        <h2 class="text-sm font-semibold mb-1">Trace timeline <span class="text-slate-400 font-normal">(obstruction = red, reconfiguration = amber)</span></h2>
+        <svg id="timeline" class="w-full flex-1" preserveAspectRatio="none"></svg>
+      </div>
+    </section>
+
+    <!-- RIGHT PANE (see left pane's comment re: overflow-y-auto) -->
+    <section class="flex flex-col gap-2 overflow-y-auto scrollbar-thin">
+
+      <!-- Live view / run summary: the demo's centerpiece -- shows what the
+           selected application is ACTUALLY experiencing right now (real
+           decoded video, a real audio level, real transfer progress), so
+           the effect of the emulated link is something to see and feel,
+           not just read off a metrics tile. -->
+      <div class="tile p-2 shrink-0">
+        <div class="flex gap-1 mb-1 text-xs">
+          <button id="tab-live-view" class="view-tab px-2 py-1 rounded-t border border-b-0 font-semibold bg-white">Live view</button>
+          <button id="tab-run-summary" class="view-tab px-2 py-1 rounded-t border border-b-0 text-slate-500">Run summary</button>
+        </div>
+
+        <div id="panel-live-view" class="min-h-[190px] bg-slate-900 rounded overflow-hidden relative flex items-center justify-center">
+          <div id="live-view-placeholder" class="text-slate-400 text-xs p-4 text-center">
+            Select an application below and click "Run showcase" to see it live here.
+          </div>
+          <img id="live-frame-img" class="hidden max-h-[220px] max-w-full mx-auto" />
+          <div id="live-voip-meter" class="hidden w-full max-w-xs p-4 text-center">
+            <div class="text-slate-300 text-xs mb-2">Audio level (real, from the decoded stream)</div>
+            <div class="w-full bg-slate-700 rounded h-4 overflow-hidden mb-4">
+              <div id="live-voip-bar" class="bg-emerald-500 h-4 transition-all" style="width:0%"></div>
+            </div>
+            <div id="live-voip-mos" class="text-white text-4xl font-bold mono">–</div>
+            <div class="text-slate-400 text-[10px] mt-1">live measured MOS</div>
+          </div>
+          <div id="live-ft-progress" class="hidden w-full max-w-md p-4">
+            <div class="flex justify-between text-slate-300 text-xs mb-1">
+              <span>Transfer progress</span><span id="live-ft-pct">–</span>
+            </div>
+            <div class="w-full bg-slate-700 rounded h-3 overflow-hidden mb-4">
+              <div id="live-ft-bar" class="bg-blue-500 h-3 transition-all" style="width:0%"></div>
+            </div>
+            <svg id="live-ft-sparkline" class="w-full" height="50"></svg>
+            <div class="text-slate-400 text-[10px] mt-1 text-center">throughput (Mbit/s), real-time</div>
+          </div>
+        </div>
+
+        <div id="panel-run-summary" class="hidden min-h-[190px]">
+          <div id="run-summary-placeholder" class="text-slate-400 text-xs p-4 text-center">
+            Run a showcase to completion to see its full metrics-vs-time overview here.
+          </div>
+          <div id="run-summary-content" class="hidden">
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-xs font-semibold text-slate-600">Application metrics over the run</h3>
+              <div class="flex items-center gap-2">
+                <div id="summary-legend" class="flex gap-3 text-[10px]"></div>
+                <button id="export-results-btn" class="text-[10px] border rounded px-1.5 py-0.5 text-slate-600 hover:bg-slate-100" title="Download app samples + QoE + the full undecimated scenario trace as JSON (import it later for an exact 1:1 replay)">Export results</button>
+              </div>
+            </div>
+            <svg id="summary-app-chart" class="w-full" height="70"></svg>
+            <div id="summary-scenario-block" class="mt-1">
+              <h3 class="text-xs font-semibold text-slate-600 mb-1">
+                Concurrent scenario impairment <span class="text-slate-400 font-normal">(same time window)</span>
+              </h3>
+              <div id="summary-loss-strip" class="strip mb-1.5"></div>
+              <svg id="summary-delay-chart" class="w-full" height="50"></svg>
+              <div class="flex gap-3 text-[10px] text-slate-500 mt-1">
+                <span><span class="inline-block w-2 h-2 bg-red-600 align-middle mr-1"></span>composed loss</span>
+                <span><span class="inline-block w-2 h-2 align-middle mr-1" style="background:#2563eb"></span>delay (ms)</span>
+                <span><span class="inline-block w-2 h-2 align-middle mr-1" style="background:#f97316"></span>jitter (ms)</span>
+              </div>
+            </div>
+            <div id="summary-no-scenario" class="hidden text-[10px] text-slate-400 mt-2">
+              No scenario was running concurrently with this showcase — nothing to overlay.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Per-component binary loss strips -->
+      <div class="tile p-2 shrink-0">
+        <h2 class="text-sm font-semibold mb-1">Loss signal per component (last 30s window)</h2>
+        <div class="space-y-1 text-[11px]">
+          <div class="flex items-center gap-2"><span class="w-24 text-slate-500">ObLoS</span><div id="strip-obstruction" class="strip flex-1"></div></div>
+          <div class="flex items-center gap-2"><span class="w-24 text-slate-500">Reconfig</span><div id="strip-reconfig" class="strip flex-1"></div></div>
+          <div class="flex items-center gap-2"><span class="w-24 text-slate-500 font-semibold">Composed</span><div id="strip-composed" class="strip flex-1"></div></div>
+        </div>
+      </div>
+
+      <!-- Delay/jitter + bandwidth chart -->
+      <div class="tile p-2 shrink-0">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="text-sm font-semibold">Delay / jitter (last 30s)</h2>
+          <div id="delay-live-values" class="text-[11px] mono text-slate-500">
+            <span style="color:#2563eb">● delay</span> <span id="live-delay-val">–</span>
+            &nbsp;&nbsp;<span style="color:#f97316">● jitter</span> <span id="live-jitter-val">–</span>
+          </div>
+        </div>
+        <svg id="delay-chart" class="w-full" height="72"></svg>
+      </div>
+
+      <!-- Application showcases (real traffic, needs Docker) -->
+      <div class="tile p-2 shrink-0">
+        <h2 class="text-sm font-semibold mb-1">Application showcases <span class="text-slate-400 font-normal">(real traffic — needs Docker)</span></h2>
+        <div class="flex gap-2 text-xs items-end">
+          <label class="flex flex-col gap-1 flex-1">Application
+            <select id="app-select" class="border rounded px-2 py-1"></select>
+          </label>
+          <label id="app-duration-field" class="hidden flex-col gap-1 w-24">Duration (s)
+            <input id="app-duration" type="number" value="30" min="5" class="border rounded px-2 py-1" />
+          </label>
+          <label id="app-size-field" class="flex flex-col gap-1 w-28">Transfer size (GB)
+            <input id="app-size-gb" type="number" value="1" min="0.05" step="0.05" class="border rounded px-2 py-1" />
+          </label>
+          <button id="run-showcase-btn" class="bg-slate-700 text-white rounded px-3 py-1.5 font-semibold hover:bg-slate-800">Run showcase</button>
+          <button id="restart-showcase-btn" class="hidden bg-slate-500 text-white rounded px-3 py-1.5 font-semibold hover:bg-slate-600" title="Run it again with the same settings -- real traffic, so not a byte-identical repeat">Restart showcase</button>
+        </div>
+        <div id="showcase-status" class="text-[11px] text-slate-500 mt-1"></div>
+        <!-- Per-application MEASURED QoE: tiles + one headline gauge are generated
+             from the backend's app registry and change with the selected application.
+             Tiles/gauge are colored green/amber/red per metric.good/warn thresholds
+             (see backend/api.py's SHOWCASE_APPS) when a metric declares them. -->
+        <div class="mt-1.5 flex gap-2 items-start">
+          <div id="app-qoe-gauge" class="shrink-0 w-16"></div>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] font-semibold text-slate-600">Application QoE <span class="text-slate-400 font-normal">(measured from real traffic)</span></div>
+            <div id="app-qoe-tiles" class="grid grid-cols-5 gap-1.5 mt-1"></div>
+            <div id="app-qoe-source" class="text-[10px] text-slate-400 mt-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- tc command feed -->
+      <div class="tile p-2 flex-1 overflow-hidden flex flex-col min-h-[90px]">
+        <div class="flex items-center justify-between mb-1 gap-1.5">
+          <h2 class="text-sm font-semibold">Orchestrator → netem</h2>
+          <div class="flex items-center gap-1.5">
+            <span id="playback-lag-badge" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700" title=""></span>
+            <span id="backend-mode-badge" class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">–</span>
+          </div>
+        </div>
+        <div id="last-loss-line" class="mono text-[10px] text-slate-400 mb-1 truncate" title=""></div>
+        <div id="tc-feed" class="mono text-[10.5px] leading-relaxed overflow-y-auto scrollbar-thin flex-1 bg-slate-900 text-slate-100 rounded p-2"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+// Derive the backend origin from wherever this page was loaded from, so the
+// dashboard works from other hosts on the LAN too (the backend must then be
+// started with --host 0.0.0.0 and ufw must allow 8731/tcp -- see README.md
+// "Remote access"). Falls back to loopback when opened via file://.
+const API = `http://${window.location.hostname || "127.0.0.1"}:8731/api`;
+let map, routeLine, obstructionLayer, positionMarker, startMarker, endMarker;
+let scenarioId = null, routeData = null, fullTrace = null, pollTimer = null;
+let currentShowcaseJobId = null;  // set while THIS tab's own runShowcase() call is in flight --
+// lets pollActiveRun() (below) tell "a showcase I started" from "an orphaned one someone/some
+// other tab started" apart, same as scenarioId does for scenarios.
+// The exact config used to create the current/last scenario (seed included) --
+// "Restart (same run)" re-POSTs this verbatim for a byte-identical repeat,
+// distinct from "Start emulation run" which always rolls a fresh random seed.
+let lastScenarioConfig = null;
+let lastShowcaseRequest = null;   // {app, body} used for the last showcase run, for "Restart showcase"
+// The polyline actually used to position the car marker during playback --
+// kept separate from routeData (only ever populated by loadRoute(), i.e. real-drive
+// mode) so custom-route runs (simulateCustomRoute()) can drive the marker too.
+let activePolyline = null;
+let routeMode = "real_drive"; // "real_drive" | "custom_route"
+let weatherMode = "real_dwd";
+let pickTarget = null; // "start" | "end" | null
+let customSimResult = null; // {trace, polyline} once a custom-route simulation completes
+
+// FastAPI error bodies are {"detail": "..."} -- extract that instead of surfacing raw JSON
+// text through e.message everywhere a catch block shows the user an error (e.g. the new
+// 409 "testbed busy" responses from the concurrency lock).
+async function _errorMessage(r) {
+  const text = await r.text();
+  try { return JSON.parse(text).detail || text; } catch (e) { return text; }
+}
+async function jget(url) { const r = await fetch(url); if (!r.ok) throw new Error(await _errorMessage(r)); return r.json(); }
+async function jpost(url, body) {
+  const r = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) throw new Error(await _errorMessage(r));
+  return r.json();
+}
+
+function initMap() {
+  map = L.map("map", {zoomControl:false}).setView([52.35, 8.7], 8);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution:"© OpenStreetMap"}).addTo(map);
+  positionMarker = L.circleMarker([52.35,8.7], {radius:6, color:"#2563eb", fillColor:"#2563eb", fillOpacity:1}).addTo(map);
+  map.on("click", (e) => {
+    if (!pickTarget) return;
+    const {lat, lng} = e.latlng;
+    document.getElementById(`${pickTarget}-lat`).value = lat.toFixed(5);
+    document.getElementById(`${pickTarget}-lon`).value = lng.toFixed(5);
+    const marker = L.marker([lat, lng]).addTo(map);
+    if (pickTarget === "start") { if (startMarker) map.removeLayer(startMarker); startMarker = marker; }
+    else { if (endMarker) map.removeLayer(endMarker); endMarker = marker; }
+    pickTarget = null;
+    document.body.style.cursor = "default";
+  });
+}
+
+function setRouteMode(mode) {
+  routeMode = mode;
+  document.getElementById("panel-real-drive").classList.toggle("hidden", mode !== "real_drive");
+  document.getElementById("panel-custom-route").classList.toggle("hidden", mode !== "custom_route");
+  document.getElementById("tab-real-drive").classList.toggle("bg-white", mode === "real_drive");
+  document.getElementById("tab-real-drive").classList.toggle("text-slate-500", mode !== "real_drive");
+  document.getElementById("tab-custom-route").classList.toggle("bg-white", mode === "custom_route");
+  document.getElementById("tab-custom-route").classList.toggle("text-slate-500", mode !== "custom_route");
+}
+
+function setViewTab(tab) {
+  document.getElementById("panel-live-view").classList.toggle("hidden", tab !== "live");
+  document.getElementById("panel-run-summary").classList.toggle("hidden", tab !== "summary");
+  document.getElementById("tab-live-view").classList.toggle("bg-white", tab === "live");
+  document.getElementById("tab-live-view").classList.toggle("text-slate-500", tab !== "live");
+  document.getElementById("tab-run-summary").classList.toggle("bg-white", tab === "summary");
+  document.getElementById("tab-run-summary").classList.toggle("text-slate-500", tab !== "summary");
+}
+
+function setWeatherMode(mode) {
+  weatherMode = mode;
+  for (const btn of document.querySelectorAll(".weather-btn")) {
+    const active = btn.dataset.mode === mode;
+    btn.classList.toggle("bg-blue-600", active);
+    btn.classList.toggle("text-white", active);
+  }
+}
+
+async function simulateCustomRoute() {
+  const startLat = parseFloat(document.getElementById("start-lat").value);
+  const startLon = parseFloat(document.getElementById("start-lon").value);
+  const endLat = parseFloat(document.getElementById("end-lat").value);
+  const endLon = parseFloat(document.getElementById("end-lon").value);
+  const statusEl = document.getElementById("simulate-status");
+  if ([startLat, startLon, endLat, endLon].some(Number.isNaN)) {
+    statusEl.textContent = "Set both start and end points first (click 📍 then click the map).";
+    return;
+  }
+  statusEl.textContent = "Simulating (OSRM route + Overpass obstacles)…";
+  customSimResult = null;
+  try {
+    const {job_id} = await jpost(`${API}/oblos/simulate`, {start_lat: startLat, start_lon: startLon, end_lat: endLat, end_lon: endLon});
+    let job;
+    for (let i = 0; i < 60; i++) {
+      job = await jget(`${API}/oblos/simulate/${job_id}`);
+      if (job.status !== "running") break;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    if (job.status === "error") {
+      const isOverpass = /overpass/i.test(job.error);
+      const prefix = isOverpass
+        ? "Overpass API failed (public, rate-limited -- NOT the local OSRM instance; try again shortly)"
+        : "OSRM/route lookup failed";
+      statusEl.textContent = `${prefix}: ${job.error}`;
+      return;
+    }
+    if (job.status === "running") { statusEl.textContent = "Still running — try again shortly."; return; }
+    customSimResult = job;
+    statusEl.textContent = `Done: ${job.trace.length} obstruction events over ${job.polyline.length} route points.`;
+    if (routeLine) map.removeLayer(routeLine);
+    if (obstructionLayer) map.removeLayer(obstructionLayer);
+    routeLine = L.polyline(job.polyline, {color:"#7c3aed", weight:3}).addTo(map);
+    activePolyline = job.polyline;
+    map.fitBounds(routeLine.getBounds(), {padding:[10,10]});
+    // Red obstruction markers, same style as loadRoute()'s real-drive path --
+    // job.trace rows now carry lat/lon (backend/models/oblos_live.py's
+    // segments_to_trace()). Unlike a real drive's dense obstruction_markers,
+    // a simulated route's events are already sparse (one per obstructing
+    // bridge/tunnel), so no decimation needed here.
+    obstructionLayer = L.layerGroup(
+      job.trace.filter(m => m.lat != null && m.lon != null).map(m =>
+        L.circleMarker([m.lat, m.lon], {radius:3, color:"#dc2626", fillColor:"#dc2626", fillOpacity:.7, weight:0}))
+    ).addTo(map);
+  } catch (e) {
+    statusEl.textContent = `Error: ${e.message}`;
+  }
+}
+
+async function loadDrives() {
+  const data = await jget(`${API}/drives`);
+  const sel = document.getElementById("drive-select");
+  sel.innerHTML = "";
+  const gpsDrives = data.drives.filter(d => d.has_gps);
+  for (const d of gpsDrives) {
+    const opt = document.createElement("option");
+    opt.value = d.drive; opt.textContent = d.drive;
+    sel.appendChild(opt);
+  }
+  if (gpsDrives.length) await loadRoute(gpsDrives[0].drive);
+  sel.addEventListener("change", e => loadRoute(e.target.value));
+}
+
+async function loadRoute(drive) {
+  routeData = await jget(`${API}/drives/${drive}/route`);
+  if (routeLine) map.removeLayer(routeLine);
+  if (obstructionLayer) map.removeLayer(obstructionLayer);
+  routeLine = L.polyline(routeData.polyline, {color:"#2563eb", weight:3}).addTo(map);
+  activePolyline = routeData.polyline;
+  map.fitBounds(routeLine.getBounds(), {padding:[10,10]});
+  obstructionLayer = L.layerGroup(
+    routeData.obstruction_markers.filter((_,i)=>i%15===0).map(m =>
+      L.circleMarker([m.lat, m.lon], {radius:3, color:"#dc2626", fillColor:"#dc2626", fillOpacity:.7, weight:0}))
+  ).addTo(map);
+}
+
+function drawTimeline(trace, durationS) {
+  const svg = document.getElementById("timeline");
+  svg.innerHTML = "";
+  const w = svg.clientWidth || 600, h = svg.clientHeight || 140;
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const rowH = h/3;
+  const rows = [["obstruction_loss","#dc2626",0], ["reconfig_loss","#d97706",1], ["loss","#1f2937",2]];
+  for (const [key,color,rowIdx] of rows) {
+    for (const pt of trace) {
+      if (pt[key]) {
+        const x = (pt.timestamp/durationS)*w;
+        const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+        rect.setAttribute("x", x); rect.setAttribute("y", rowIdx*rowH+2);
+        rect.setAttribute("width", 1.5); rect.setAttribute("height", rowH-4);
+        rect.setAttribute("fill", color);
+        svg.appendChild(rect);
+      }
+    }
+  }
+  const playhead = document.createElementNS("http://www.w3.org/2000/svg","line");
+  playhead.setAttribute("id","playhead"); playhead.setAttribute("x1",0); playhead.setAttribute("x2",0);
+  playhead.setAttribute("y1",0); playhead.setAttribute("y2",h);
+  playhead.setAttribute("stroke","#2563eb"); playhead.setAttribute("stroke-width",2);
+  svg.appendChild(playhead);
+}
+
+function updatePlayhead(elapsed, durationS) {
+  const svg = document.getElementById("timeline");
+  const w = svg.clientWidth || 600;
+  const ph = document.getElementById("playhead");
+  if (ph) { const x = (elapsed/durationS)*w; ph.setAttribute("x1",x); ph.setAttribute("x2",x); }
+  if (activePolyline && routeLine) {
+    const frac = Math.min(elapsed/durationS, 1);
+    const pts = activePolyline; const idx = Math.min(pts.length-1, Math.floor(frac*pts.length));
+    positionMarker.setLatLng(pts[idx]);
+  }
+}
+
+function drawStrip(elId, window, key, color, opts = {}) {
+  const el = document.getElementById(elId);
+  el.innerHTML = "";
+  if (!window.length) return;
+  // opts.domain lets callers pin an explicit {t0, t1} instead of each chart deriving its own
+  // from its own first/last data point -- needed so multiple charts of the SAME time window
+  // (e.g. the run-summary's app/loss/delay charts) render on an IDENTICAL x-scale rather than
+  // each independently (and slightly differently, since their underlying data arrays don't
+  // start/end at exactly the same timestamp) auto-fitting to their own data.
+  const t0 = opts.domain ? opts.domain.t0 : window[0].timestamp;
+  const t1 = opts.domain ? opts.domain.t1 : (window[window.length-1].timestamp || t0+1);
+  const span = Math.max(t1-t0, 1);
+  // opts.margin lets a strip line up EXACTLY with a drawLineChart of the same {left,right} margin
+  // (e.g. the run-summary's loss strip vs. its app/delay line charts, which reserve space on the
+  // left for y-axis labels via `margin.left`) -- real bug this fixes: without this, the strip's
+  // bars spanned its container edge-to-edge while the line charts' plotted area was inset by the
+  // margin, so the loss strip visibly extended wider than (and wasn't at the same pixel-per-second
+  // scale as) the throughput/delay charts even when both containers had the same CSS width.
+  // Defaults to no margin, preserving the original edge-to-edge behavior for existing callers
+  // (the main scenario view's obstruction/reconfig/composed strips) that don't pass one.
+  const margin = opts.margin || {left: 0, right: 0};
+  const w = el.clientWidth || 500;
+  const plotW = Math.max(w - margin.left - margin.right, 10);
+  for (const pt of window) {
+    if (pt[key]) {
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      const x = margin.left + ((pt.timestamp - t0) / span) * plotW;
+      bar.style.left = x + "px";
+      bar.style.width = Math.max(2, plotW * 0.006) + "px";
+      bar.style.background = color;
+      el.appendChild(bar);
+    }
+  }
+}
+
+function _unitFromLabel(label) {
+  // "Throughput (Mbit/s)" -> "Mbit/s"; "Decoded fps" -> "" (no parenthesized unit).
+  const m = /\(([^)]+)\)\s*$/.exec(label || "");
+  return m ? m[1] : "";
+}
+
+// "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 25.000ms ..."
+// -> "cosme-client: loss 100.0000% delay 25.000ms ..." -- the "docker exec ... tc qdisc replace
+// dev eth0 root" prefix is identical on every single line (only the container name and the actual
+// netem params vary), so keeping it added no information while eating most of the line width.
+// Real bug this fixes: the un-shortened command wrapped across multiple lines at normal panel
+// widths, and for #last-loss-line specifically that pushed the tc-feed log mostly out of view even
+// on a 1920x1080 display. The full, untouched string is still available via each element's
+// `title` attribute on hover.
+function _shortTcCmd(cmd) {
+  const m = /^docker exec (\S+) tc qdisc replace dev \S+ root (.+)$/.exec(cmd);
+  return m ? `${m[1]}: ${m[2]}` : cmd;
+}
+
+function drawLineChart(svgId, window, series, opts = {}) {
+  const svg = document.getElementById(svgId);
+  svg.innerHTML = "";
+  if (!window.length) return;
+  const ns = "http://www.w3.org/2000/svg";
+  const w = svg.clientWidth || 500, h = +svg.getAttribute("height") || 90;
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+
+  // A single shared numeric y-axis only makes sense when there's exactly one
+  // series (its own computed/explicit max is unambiguous), or when every
+  // series explicitly agrees on the same maxVal (e.g. delay_ms/jitter_ms
+  // both capped at 200ms) -- otherwise each series independently normalizes
+  // to its OWN peak (see the loop below) and a single absolute number would
+  // misrepresent the other series, so no y-axis ticks are drawn for those
+  // (the existing per-series colored legend still disambiguates units).
+  let sharedVmax;
+  if (series.length === 1) {
+    const {key, maxVal} = series[0];
+    sharedVmax = maxVal || Math.max(...window.map(p => p[key]), 1);
+  } else {
+    const explicit = series.map(s => s.maxVal).filter(v => v !== undefined);
+    if (explicit.length === series.length && new Set(explicit).size === 1) sharedVmax = explicit[0];
+  }
+  // opts.margin lets callers force an identical margin across a group of charts that need to
+  // align pixel-for-pixel (see drawStrip's comment) instead of each one picking its own margin
+  // from whether IT specifically has a shared numeric y-axis -- without this, e.g. a single-series
+  // app chart (margin.left=28, has y-axis labels) and a multi-series one with no shared max
+  // (margin.left=4, no labels) would render their plotted lines at different x-offsets even at
+  // the same nominal time domain, on top of the strip-vs-line-chart mismatch drawStrip fixes.
+  const margin = opts.margin || {left: sharedVmax !== undefined ? 28 : 4, right: 2, top: 4, bottom: 11};
+  const plotW = Math.max(w - margin.left - margin.right, 10);
+  const plotH = Math.max(h - margin.top - margin.bottom, 10);
+  // opts.domain: see drawStrip's comment -- same reasoning, same {t0, t1} override shape.
+  const t0 = opts.domain ? opts.domain.t0 : window[0].timestamp;
+  const t1 = opts.domain ? opts.domain.t1 : (window[window.length-1].timestamp || t0+1);
+  const span = Math.max(t1-t0, 1);
+
+  function addText(x, y, str, anchor, cls) {
+    const t = document.createElementNS(ns, "text");
+    t.setAttribute("x", x); t.setAttribute("y", y);
+    t.setAttribute("text-anchor", anchor || "start");
+    t.setAttribute("class", cls || "chart-axis");
+    t.textContent = str;
+    svg.appendChild(t);
+  }
+
+  for (const {key, color, maxVal} of series) {
+    const vals = window.map(p=>p[key]);
+    const vmax = maxVal || Math.max(...vals, 1);
+    const points = window.map(p => {
+      const x = margin.left + ((p.timestamp-t0)/span)*plotW;
+      const y = margin.top + plotH - (Math.min(p[key],vmax)/vmax)*plotH;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(" ");
+    const poly = document.createElementNS(ns,"polyline");
+    poly.setAttribute("points", points);
+    poly.setAttribute("fill","none"); poly.setAttribute("stroke", color); poly.setAttribute("stroke-width",1.5);
+    svg.appendChild(poly);
+  }
+
+  // X-axis: the plotted window's own time span (0s at the first point).
+  addText(margin.left, h - 1, "0s", "start");
+  addText(margin.left + plotW, h - 1, `${span.toFixed(span < 10 ? 1 : 0)}s`, "end");
+
+  // Y-axis: numeric min/max ticks, plus a unit label when one was given.
+  if (sharedVmax !== undefined) {
+    addText(margin.left - 3, margin.top + 6, sharedVmax.toFixed(sharedVmax < 10 ? 1 : 0), "end");
+    addText(margin.left - 3, margin.top + plotH, "0", "end");
+    if (opts.yUnit) addText(w - 2, margin.top + 6, opts.yUnit, "end", "chart-axis-title");
+  }
+}
+
+async function pollScenario() {
+  if (!scenarioId) return;
+  try {
+    const [status, metrics] = await Promise.all([
+      jget(`${API}/scenarios/${scenarioId}/status`),
+      jget(`${API}/scenarios/${scenarioId}/metrics?window_s=30`),
+    ]);
+    // status.error is set if playback died mid-run (e.g. a real docker/tc failure) -- previously
+    // invisible (the badge just kept showing "running" forever with a frozen tc-feed). Surface it
+    // plainly rather than let the dashboard look like it's still working.
+    const connStatus = document.getElementById("conn-status");
+    if (status.error) {
+      connStatus.textContent = "error";
+      connStatus.title = status.error;
+      connStatus.className = "px-2 py-1 rounded-full text-xs bg-red-100 text-red-700";
+    } else {
+      connStatus.textContent = status.running ? "running" : "finished";
+      connStatus.title = "";
+      connStatus.className = "px-2 py-1 rounded-full text-xs " + (status.running ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600");
+    }
+    document.getElementById("sim-clock").textContent = `t = ${status.elapsed_s.toFixed(1)}s / ${status.duration_s.toFixed(1)}s`;
+    setScenarioRunningUi(status.running);
+
+    // Green = real `docker exec ... tc` commands are actually shaping traffic; grey = DryRunNetemBackend
+    // (no Docker/containers detected -- commands are only logged, nothing is really shaped). Was
+    // previously just static header text ("dry-run unless Docker is available") with no live indicator
+    // of which one is actually active for THIS run.
+    const backendBadge = document.getElementById("backend-mode-badge");
+    const isDocker = status.backend_mode === "docker";
+    backendBadge.textContent = isDocker ? "● docker (live)" : "○ dry-run (no docker)";
+    backendBadge.className = "px-1.5 py-0.5 rounded-full text-[10px] font-semibold "
+      + (isDocker ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500");
+
+    drawStrip("strip-obstruction", metrics.window, "obstruction_loss", "#dc2626");
+    drawStrip("strip-reconfig", metrics.window, "reconfig_loss", "#d97706");
+    drawStrip("strip-composed", metrics.window, "loss", "#1f2937");
+    // Grows with the window's own actual max delay/jitter instead of a fixed 200ms cap --
+    // a real reconfig-slot baseline shift (see backend/models/garcia.py) can legitimately
+    // push delay past what a fixed cap would show, and a fixed cap otherwise wastes most of
+    // the chart's height when the real values sit well below it. A floor keeps a near-zero
+    // window from producing a degenerate, over-zoomed axis. Both series share one explicit
+    // maxVal so they stay on a directly-comparable scale (see drawLineChart's own comment on
+    // why a shared axis needs every series to agree on the same maxVal).
+    const rttJitterMax = Math.max(...metrics.window.map(p => Math.max(p.delay_ms, p.jitter_ms)), 50);
+    drawLineChart("delay-chart", metrics.window, [
+      {key:"delay_ms", color:"#2563eb", maxVal: rttJitterMax},
+      {key:"jitter_ms", color:"#f97316", maxVal: rttJitterMax},
+    ], {yUnit: "ms"});
+    document.getElementById("live-delay-val").textContent = `${metrics.current.delay_ms.toFixed(1)}ms`;
+    document.getElementById("live-jitter-val").textContent = `${metrics.current.jitter_ms.toFixed(1)}ms`;
+
+    updatePlayhead(status.elapsed_s, status.duration_s);
+
+    // elapsed_s above is pure wall-clock and says nothing about whether playback has actually
+    // kept up with it -- a real bug (orchestrator.py's play() falling behind schedule under a
+    // fine update_interval_s) let this silently drift for minutes with no visible symptom besides
+    // "loss never seems to happen" (loss bursts are brief, so they're the first thing a growing
+    // lag makes imperceptible; delay/rate still LOOK plausible because they change slowly). Now
+    // surfaced directly instead of staying invisible.
+    const lagBadge = document.getElementById("playback-lag-badge");
+    const lag = status.playback_lag_s || 0;
+    if (lag > 2) {
+      lagBadge.textContent = `⚠ ${lag.toFixed(1)}s behind`;
+      lagBadge.title = `Playback has fallen ${lag.toFixed(1)}s behind real time -- `
+        + `${status.playback_ticks_skipped}/${status.playback_ticks_total} non-loss updates skipped `
+        + `to catch up. Loss on/off transitions are never skipped. Consider a coarser update `
+        + `interval if this keeps growing.`;
+      lagBadge.classList.remove("hidden");
+    } else {
+      lagBadge.classList.add("hidden");
+    }
+
+    const lastLossEl = document.getElementById("last-loss-line");
+    if (status.last_loss_command) {
+      lastLossEl.textContent = `last loss: ${_shortTcCmd(status.last_loss_command)}`;
+      lastLossEl.title = status.last_loss_command;
+    } else {
+      lastLossEl.textContent = "no loss command issued yet in this run";
+      lastLossEl.title = "";
+    }
+
+    const feed = document.getElementById("tc-feed");
+    feed.innerHTML = "";
+    for (const c of status.recent_tc_commands) {
+      const line = document.createElement("div");
+      line.className = "truncate" + (c.includes("loss") ? " text-amber-400 font-semibold" : "");
+      line.title = c;  // DOM property assignment -- always safe regardless of content, unlike
+                        // string-building into innerHTML with an attribute in the mix
+      line.textContent = `$ ${_shortTcCmd(c)}`;
+      feed.appendChild(line);
+    }
+    feed.scrollTop = feed.scrollHeight;
+  } catch (e) {
+    document.getElementById("conn-status").textContent = "error";
+    document.getElementById("conn-status").className = "px-2 py-1 rounded-full text-xs bg-red-100 text-red-700";
+  }
+}
+
+function setScenarioRunningUi(running) {
+  document.getElementById("stop-btn").classList.toggle("hidden", !running);
+  // Restart only makes sense once there's a previous run to repeat, and while
+  // it's not currently running (repeating mid-run would just orphan the old
+  // scenario's polling/playback).
+  document.getElementById("restart-btn").classList.toggle("hidden", running || !lastScenarioConfig);
+}
+
+// `configOverride` lets restartScenario() re-POST a stored config verbatim
+// (same seed => same composed trace, since compose() is a pure function of
+// its inputs -- see docs/COMPOSITION.md / backend/compose.py) instead of
+// re-reading the form and rolling a fresh random seed.
+async function startScenario(configOverride) {
+  let config = configOverride;
+  if (!config) {
+    config = {
+      nominal_download_mbps: parseFloat(document.getElementById("nominal-dl").value),
+      nominal_upload_mbps: parseFloat(document.getElementById("nominal-ul").value),
+      weather_mode: weatherMode,
+      tcp_congestion_control: document.getElementById("cc-select").value,
+      update_interval_s: parseFloat(document.getElementById("update-interval-select").value),
+      speed: parseFloat(document.getElementById("speed-select").value),
+      seed: Math.floor(Math.random()*100000),
+    };
+    if (routeMode === "real_drive") {
+      config.drive = document.getElementById("drive-select").value || null;
+    } else {
+      if (!customSimResult) {
+        alert("Simulate a custom route first.");
+        return;
+      }
+      config.custom_obstruction_trace = customSimResult.trace;
+    }
+  }
+  let resp;
+  try {
+    resp = await jpost(`${API}/scenarios`, config);
+  } catch (e) {
+    // Most commonly a 409 from the concurrency lock (cosme-client/cosme-server are already
+    // busy running something else) -- previously this just vanished into console.error with
+    // no feedback at all. alert() matches this function's existing style for a precondition
+    // failure (see the "Simulate a custom route first" case above).
+    alert(`Could not start: ${e.message}`);
+    return;
+  }
+  scenarioId = resp.id;
+  lastScenarioConfig = config;
+  const traceResp = await jget(`${API}/scenarios/${scenarioId}/trace?max_points=1500`);
+  fullTrace = traceResp.trace;
+  drawTimeline(fullTrace, resp.duration_s);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollScenario, 1500);
+  pollScenario();
+}
+
+async function stopScenario() {
+  if (!scenarioId) return;
+  try {
+    await jpost(`${API}/scenarios/${scenarioId}/stop`, {});
+  } catch (e) { /* best-effort -- still update the UI below */ }
+
+  // A showcase's traffic without a shaped link behind it doesn't serve the demo's point --
+  // "Stop" is meant to stop the WHOLE emulation, not just the netem shaping. Checks system-wide
+  // active-run (not just this tab's own currentShowcaseJobId) so a showcase started from another
+  // tab/orphaned session gets stopped too, matching what /api/system/active-run already surfaces.
+  try {
+    const {active} = await jget(`${API}/system/active-run`);
+    if (active && active.kind === "showcase") {
+      await jpost(`${API}/showcase/jobs/${active.id}/stop`, {});
+    }
+  } catch (e) { /* best-effort */ }
+
+  // Real bug this fixes: the poll timer was never cleared here, so pollScenario() kept firing
+  // every 1.5s after Stop and kept rendering fresh /status+/metrics responses -- combined with
+  // elapsed_s() previously not freezing server-side either, the charts visibly kept moving even
+  // though playback had genuinely stopped. Both halves are now fixed; clearing the timer here
+  // also stops the wasted polling once the scenario has nothing left to report.
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  await pollScenario().catch(() => {});  // one final render so the UI reflects the frozen state exactly, not whatever the last 1.5s-old poll happened to show
+
+  setScenarioRunningUi(false);
+  document.getElementById("conn-status").textContent = "stopped";
+  document.getElementById("conn-status").className = "px-2 py-1 rounded-full text-xs bg-slate-200 text-slate-600";
+}
+
+async function restartScenario() {
+  if (!lastScenarioConfig) return;
+  await startScenario(lastScenarioConfig);
+}
+
+async function resetContainers() {
+  const btn = document.getElementById("reset-containers-btn");
+  if (!confirm("Reset containers? This restarts cosme-client/cosme-server/cosme-probe, stops any running scenario, and interrupts any running showcase. Use \"Stop\" instead for just picking the wrong scenario/showcase.")) {
+    return;
+  }
+  const prevText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Resetting…";
+  try {
+    await jpost(`${API}/system/reset-containers`, {});
+    if (pollTimer) clearInterval(pollTimer);
+    scenarioId = null;
+    setScenarioRunningUi(false);
+    document.getElementById("conn-status").textContent = "containers reset";
+    document.getElementById("conn-status").className = "px-2 py-1 rounded-full text-xs bg-slate-200 text-slate-600";
+  } catch (e) {
+    alert(`Reset failed: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevText;
+  }
+}
+
+// --- Application showcases: registry-driven selector, unified job runner,
+// --- per-application measured QoE tiles.
+
+let apps = [];               // /api/showcase/apps registry
+let qoePollTimer = null;
+
+function selectedApp() {
+  return apps.find(a => a.id === document.getElementById("app-select").value) || null;
+}
+
+async function loadApps() {
+  apps = (await jget(`${API}/showcase/apps`)).apps;
+  const sel = document.getElementById("app-select");
+  sel.innerHTML = "";
+  for (const a of apps) {
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    opt.textContent = `${a.label} — ${a.transport.toUpperCase()}`;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener("change", onAppChange);
+  onAppChange();
+}
+
+function onAppChange() {
+  const app = selectedApp();
+  if (!app) return;
+  // TCP congestion control is meaningless for UDP applications -- hard-disable
+  // the selector so it can't suggest otherwise.
+  const cc = document.getElementById("cc-select");
+  cc.disabled = app.transport === "udp";
+  cc.title = app.transport === "udp"
+    ? `${app.label} is UDP — no TCP congestion control applies`
+    : "Sender-side TCP congestion control (applied via nsenter, see README)";
+  // file_transfer has no notion of "duration" -- it's a fixed-size download
+  // that ends when the transfer completes -- so it gets a "size (GB)" input
+  // instead of the duration used by every other (fixed-length) showcase.
+  const isFileTransfer = app.id === "file_transfer";
+  const durationField = document.getElementById("app-duration-field");
+  durationField.classList.toggle("hidden", isFileTransfer);
+  durationField.classList.toggle("flex", !isFileTransfer);
+  const sizeField = document.getElementById("app-size-field");
+  sizeField.classList.toggle("hidden", !isFileTransfer);
+  sizeField.classList.toggle("flex", isFileTransfer);
+
+  renderAppQoeTiles(app, {});   // empty tiles until data arrives
+  document.getElementById("app-qoe-source").textContent = "no data yet — run the showcase";
+  if (qoePollTimer) clearInterval(qoePollTimer);
+  qoePollTimer = setInterval(() => pollAppQoe().catch(() => {}), 1500);
+  pollAppQoe().catch(() => {});
+  stopLiveView();
+  resetLiveView();
+  resetRunSummary();
+  document.getElementById("restart-showcase-btn").classList.add("hidden");
+}
+
+function resetRunSummary() {
+  document.getElementById("run-summary-content").classList.add("hidden");
+  document.getElementById("run-summary-placeholder").classList.remove("hidden");
+  setViewTab("live");
+}
+
+// --- Live view: what the selected application is ACTUALLY experiencing
+// right now (real decoded frames / real audio level / real transfer
+// progress) -- only polled while a showcase job is actually running.
+
+let liveViewPollTimer = null;
+const IMAGE_LIVE_APPS = new Set(["video_conferencing", "surveillance", "remote_desktop"]);
+
+function resetLiveView() {
+  document.getElementById("live-view-placeholder").classList.remove("hidden");
+  document.getElementById("live-frame-img").classList.add("hidden");
+  document.getElementById("live-voip-meter").classList.add("hidden");
+  document.getElementById("live-ft-progress").classList.add("hidden");
+}
+
+async function updateLiveView(app) {
+  document.getElementById("live-view-placeholder").classList.add("hidden");
+  if (IMAGE_LIVE_APPS.has(app.id)) {
+    document.getElementById("live-voip-meter").classList.add("hidden");
+    document.getElementById("live-ft-progress").classList.add("hidden");
+    const img = document.getElementById("live-frame-img");
+    try {
+      const resp = await fetch(`${API}/showcase/live-frame/${app.id}?t=${Date.now()}`);
+      if (resp.status === 200) {
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const prevUrl = img.dataset.blobUrl;
+        img.src = url;
+        img.dataset.blobUrl = url;
+        img.classList.remove("hidden");
+        if (prevUrl) URL.revokeObjectURL(prevUrl);
+      }
+      // 204 (no frame yet, or stale) -- keep showing the last frame rather than flicker blank.
+    } catch (e) { /* transient fetch error -- keep last frame, try again next tick */ }
+  } else if (app.id === "voip") {
+    document.getElementById("live-frame-img").classList.add("hidden");
+    document.getElementById("live-ft-progress").classList.add("hidden");
+    document.getElementById("live-voip-meter").classList.remove("hidden");
+    try {
+      const data = await jget(`${API}/showcase/app-stats?app=voip&n=1`);
+      const level = data.stats.length ? (data.stats[data.stats.length - 1].audio || {}).level : null;
+      // Measured RMS for the demo asset's audio track is ~0.002-0.02 --
+      // scaled for a visually legible meter, not a calibrated dBFS readout.
+      document.getElementById("live-voip-bar").style.width = `${Math.min((level || 0) * 2500, 100)}%`;
+      const qoe = await jget(`${API}/showcase/qoe/voip`);
+      document.getElementById("live-voip-mos").textContent =
+        qoe.metrics.mos != null ? qoe.metrics.mos.toFixed(2) : "–";
+    } catch (e) { /* keep last reading */ }
+  } else if (app.id === "file_transfer") {
+    document.getElementById("live-frame-img").classList.add("hidden");
+    document.getElementById("live-voip-meter").classList.add("hidden");
+    document.getElementById("live-ft-progress").classList.remove("hidden");
+    try {
+      const data = await jget(`${API}/showcase/app-stats?app=file_transfer&n=200`);
+      const stats = data.stats;
+      if (stats.length) {
+        const last = stats[stats.length - 1];
+        const pct = last.total_bytes ? Math.min(100, 100 * last.bytes / last.total_bytes) : null;
+        document.getElementById("live-ft-pct").textContent = pct != null ? `${pct.toFixed(0)}%` : "–";
+        document.getElementById("live-ft-bar").style.width = `${pct || 0}%`;
+        const t0 = stats[0].t;
+        const reshaped = stats.map(s => ({timestamp: s.t - t0, throughput_mbps: s.throughput_mbps || 0}));
+        drawLineChart("live-ft-sparkline", reshaped, [{key: "throughput_mbps", color: "#3b82f6"}], {yUnit: "Mbit/s"});
+      }
+    } catch (e) { /* keep last reading */ }
+  }
+}
+
+function startLiveView(app) {
+  resetLiveView();
+  stopLiveView();
+  updateLiveView(app).catch(() => {});
+  liveViewPollTimer = setInterval(() => updateLiveView(app).catch(() => {}), 1200);
+}
+
+function stopLiveView() {
+  if (liveViewPollTimer) { clearInterval(liveViewPollTimer); liveViewPollTimer = null; }
+}
+
+// --- Run summary: end-of-run metrics-vs-time overview, cross-referenced
+// --- against the concurrent scenario's loss/delay/jitter over the SAME
+// --- time window -- "did the app's QoE actually respond to this impairment?"
+
+// Per-app: which flat series to plot from the raw app-stats sample shape
+// (samples nest per-media fields under "audio"/"video" for the WebRTC
+// showcases -- this flattens each app's specific shape into a few
+// plottable {key, label, color} series).
+const SUMMARY_SERIES = {
+  file_transfer: (s) => ({throughput_mbps: s.throughput_mbps}),
+  surveillance: (s) => ({fps: s.fps, bitrate_kbps: s.bitrate_kbps}),
+  remote_desktop: (s) => ({effective_fps: s.effective_fps, keystroke_latency_ms: s.keystroke_latency_ms}),
+  video_conferencing: (s) => ({
+    video_bitrate_kbps: (s.video || {}).bitrate_kbps, rtt_ms: s.rtt_ms,
+  }),
+  voip: (s) => ({rtt_ms: s.rtt_ms, jitter_ms: (s.audio || {}).jitter_ms}),
+};
+const SUMMARY_SERIES_META = {
+  throughput_mbps: {label: "Throughput (Mbit/s)", color: "#3b82f6"},
+  fps: {label: "Decoded fps", color: "#3b82f6"},
+  bitrate_kbps: {label: "Bitrate (kbit/s)", color: "#f97316"},
+  effective_fps: {label: "Screen updates (fps)", color: "#3b82f6"},
+  keystroke_latency_ms: {label: "Keystroke RTT (ms)", color: "#f97316"},
+  video_bitrate_kbps: {label: "Video bitrate (kbit/s)", color: "#3b82f6"},
+  rtt_ms: {label: "RTT (ms)", color: "#f97316"},
+  jitter_ms: {label: "Jitter (ms)", color: "#3b82f6"},
+};
+
+async function renderRunSummary(app) {
+  document.getElementById("run-summary-placeholder").classList.add("hidden");
+  document.getElementById("run-summary-content").classList.remove("hidden");
+
+  const {stats} = await jget(`${API}/showcase/app-stats?app=${app.id}&n=500`);
+  const extract = SUMMARY_SERIES[app.id] || (() => ({}));
+  const seriesKeys = Object.keys(extract(stats[0] || {}));
+  const legend = document.getElementById("summary-legend");
+  legend.innerHTML = seriesKeys.map(k => {
+    const meta = SUMMARY_SERIES_META[k];
+    return `<span><span class="inline-block w-2 h-2 align-middle mr-1" style="background:${meta.color}"></span>${meta.label}</span>`;
+  }).join("");
+
+  if (!stats.length) {
+    document.getElementById("summary-app-chart").innerHTML = "";
+    document.getElementById("summary-no-scenario").classList.remove("hidden");
+    document.getElementById("summary-no-scenario").textContent = "No samples were recorded for this run.";
+    return;
+  }
+
+  // Align app samples (wall-clock time.time()) onto the scenario's own
+  // sim-time axis: sim_t = (sample.t - scenario.start_time) * speed. Both
+  // this reshaped app series and the scenario trace slice below end up on
+  // the same "scenario-relative seconds" axis, so cropping the trace to the
+  // app run's [min,max] and letting each chart auto-fit its own span
+  // (drawLineChart's existing behavior) lines the two up without needing to
+  // change the chart helpers themselves.
+  let t0 = stats[0].t, simSpeed = 1, haveScenario = false;
+  if (scenarioId) {
+    try {
+      const status = await jget(`${API}/scenarios/${scenarioId}/status`);
+      if (status.start_time) { t0 = status.start_time; simSpeed = status.speed || 1; haveScenario = true; }
+    } catch (e) { /* scenario may have been superseded -- fall back to no overlay */ }
+  }
+  const reshaped = stats.map(s => {
+    const row = {timestamp: (s.t - t0) * simSpeed};
+    for (const k of seriesKeys) row[k] = extract(s)[k] || 0;
+    return row;
+  });
+  // One shared {t0, t1} domain for ALL THREE summary charts (app/loss/delay) -- previously each
+  // chart auto-derived its own span from its own data array's first/last timestamp, which
+  // silently differed by a second or so between the app series (starts exactly at 0) and the
+  // cropped scenario trace slice below (whatever its first surviving decimated sample happens to
+  // be), visibly misaligning the x-axes. Pinning all three to this one domain fixes it.
+  const domain = {t0: reshaped[0].timestamp, t1: reshaped[reshaped.length - 1].timestamp};
+  // Forced identical margin across all three summary charts (app metric / loss / delay) so they
+  // render at the same width AND the same pixel-per-second scale -- see drawStrip's and
+  // drawLineChart's own comments for the bug this fixes (the loss strip previously had no margin
+  // at all and rendered edge-to-edge, visibly wider than the line charts' inset plotted area).
+  const SUMMARY_CHART_MARGIN = {left: 28, right: 2, top: 4, bottom: 11};
+  drawLineChart("summary-app-chart", reshaped,
+    seriesKeys.map(k => ({key: k, color: SUMMARY_SERIES_META[k].color})),
+    {yUnit: seriesKeys.length === 1 ? _unitFromLabel(SUMMARY_SERIES_META[seriesKeys[0]].label) : undefined,
+     domain, margin: SUMMARY_CHART_MARGIN});
+
+  lastRunSummaryExport = {app, scenarioId: haveScenario ? scenarioId : null, stats, generatedAt: Date.now()};
+
+  const scenarioBlock = document.getElementById("summary-scenario-block");
+  const noScenario = document.getElementById("summary-no-scenario");
+  if (!haveScenario) {
+    scenarioBlock.classList.add("hidden");
+    noScenario.classList.remove("hidden");
+    noScenario.textContent = "No scenario was running concurrently with this showcase — nothing to overlay.";
+    return;
+  }
+  scenarioBlock.classList.remove("hidden");
+  noScenario.classList.add("hidden");
+
+  const simT0 = domain.t0, simT1 = domain.t1;
+  const {trace} = await jget(`${API}/scenarios/${scenarioId}/trace?max_points=2000`);
+  const cropped = trace.filter(p => p.timestamp >= simT0 - 1 && p.timestamp <= simT1 + 1);
+  if (cropped.length) {
+    drawStrip("summary-loss-strip", cropped, "loss", "#dc2626", {domain, margin: SUMMARY_CHART_MARGIN});
+    drawLineChart("summary-delay-chart", cropped, [
+      {key: "delay_ms", color: "#2563eb", maxVal: 200},
+      {key: "jitter_ms", color: "#f97316", maxVal: 200},
+    ], {yUnit: "ms", domain, margin: SUMMARY_CHART_MARGIN});
+  } else {
+    scenarioBlock.classList.add("hidden");
+    noScenario.classList.remove("hidden");
+    noScenario.textContent = "The scenario's trace doesn't overlap this showcase run's time window.";
+  }
+}
+
+// Populated at the end of renderRunSummary(); consumed by exportResults().
+let lastRunSummaryExport = null;
+
+async function exportResults() {
+  if (!lastRunSummaryExport) return;
+  const {app, scenarioId: exportScenarioId, stats, generatedAt} = lastRunSummaryExport;
+  const btn = document.getElementById("export-results-btn");
+  const prevText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Exporting…";
+  try {
+    const bundle = {
+      app_id: app.id,
+      generated_at: new Date(generatedAt).toISOString(),
+      app_samples: stats,
+      scenario_id: exportScenarioId,
+      scenario_config: null,
+      // Full, UNDECIMATED trace (max_points<=0) -- not the same 2000-point trace used for
+      // charting. Needed for exact 1:1 replay via Import: decimation aggregates/drops rows,
+      // which is fine for a chart but would silently replay a slightly different scenario.
+      scenario_trace: null,
+      qoe_metrics: null,
+    };
+    try {
+      bundle.qoe_metrics = (await jget(`${API}/showcase/qoe/${app.id}`)).metrics;
+    } catch (e) { /* best-effort */ }
+    if (exportScenarioId) {
+      bundle.scenario_config = (exportScenarioId === scenarioId) ? lastScenarioConfig : null;
+      try {
+        bundle.scenario_trace = (await jget(`${API}/scenarios/${exportScenarioId}/trace?max_points=0`)).trace;
+      } catch (e) { /* scenario may have been superseded by a reset -- export without it */ }
+    }
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cosme-run-${app.id}-${generatedAt}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevText;
+  }
+}
+
+// Reproduces an exported run's EXACT composed trace (not just its config -- see
+// ScenarioConfig.imported_trace's docstring for why: a config-only replay is only
+// deterministic as long as the model fit caches it reads haven't since changed).
+async function importScenario(file) {
+  const statusEl = document.getElementById("simulate-status");
+  try {
+    const bundle = JSON.parse(await file.text());
+    if (!bundle.scenario_trace || !bundle.scenario_trace.length) {
+      alert("This export has no scenario_trace to replay (it may have been recorded without a running scenario).");
+      return;
+    }
+    const config = {...(bundle.scenario_config || {}), imported_trace: bundle.scenario_trace};
+    delete config.drive;
+    delete config.custom_obstruction_trace;  // imported_trace takes precedence anyway; keep the intent explicit
+    await startScenario(config);
+    statusEl.textContent = `Imported run replayed (${bundle.scenario_trace.length} trace rows, app: ${bundle.app_id || "n/a"}).`;
+  } catch (e) {
+    alert(`Import failed: ${e.message}`);
+  }
+}
+
+// good/warn/higher_is_better come from the backend registry (backend/api.py's
+// SHOWCASE_APPS) -- returns null (no color) when a metric doesn't declare
+// thresholds (e.g. file_transfer's duration_s, whose "good" value depends
+// entirely on the user-chosen transfer size).
+function qoeTier(value, metric) {
+  if (value === null || value === undefined || metric.good === undefined || metric.warn === undefined) return null;
+  const v = Number(value);
+  if (Number.isNaN(v)) return null;
+  if (metric.higher_is_better) {
+    if (v >= metric.good) return "good";
+    if (v >= metric.warn) return "warn";
+    return "bad";
+  }
+  if (v <= metric.good) return "good";
+  if (v <= metric.warn) return "warn";
+  return "bad";
+}
+const QOE_TIER_COLOR = {good: "#059669", warn: "#d97706", bad: "#dc2626"};
+const QOE_TIER_BG = {good: "bg-emerald-50", warn: "bg-amber-50", bad: "bg-red-50"};
+const QOE_TIER_BORDER = {good: "border-emerald-300", warn: "border-amber-300", bad: "border-red-300"};
+const QOE_TIER_TEXT = {good: "text-emerald-700", warn: "text-amber-700", bad: "text-red-700"};
+
+// Continuous 0..1 fill for the gauge, not just the 3-tier color -- "worst" is
+// defined as one more warn-to-good-sized step past warn, giving the gauge a
+// sensible dynamic range without inventing a second pair of thresholds.
+function qoeGaugeFraction(value, metric) {
+  if (value === null || value === undefined || metric.good === undefined || metric.warn === undefined) return null;
+  const v = Number(value);
+  if (Number.isNaN(v)) return null;
+  const span = Math.abs(metric.good - metric.warn) || 1;
+  const worst = metric.higher_is_better ? metric.warn - span : metric.warn + span;
+  const frac = metric.higher_is_better ? (v - worst) / (metric.good - worst) : (worst - v) / (worst - metric.good);
+  return Math.max(0, Math.min(1, frac));
+}
+
+function renderAppQoeTiles(app, metrics) {
+  const grid = document.getElementById("app-qoe-tiles");
+  grid.innerHTML = "";
+  grid.className = `grid grid-cols-${Math.min(app.metrics.length, 5)} gap-1.5 mt-1`;
+  for (const m of app.metrics) {
+    const v = metrics[m.key];
+    const shown = (v === null || v === undefined) ? "–" : Number(v).toFixed(m.decimals);
+    const tier = qoeTier(v, m);
+    const div = document.createElement("div");
+    div.className = `border rounded p-1.5 text-center ${tier ? `${QOE_TIER_BG[tier]} ${QOE_TIER_BORDER[tier]}` : "bg-slate-50"}`;
+    div.innerHTML = `<div class="text-[10px] text-slate-500">${m.label}</div>`
+      + `<div class="text-base font-bold mono ${tier ? QOE_TIER_TEXT[tier] : ""}">${shown}</div>`
+      + `<div class="text-[9px] text-slate-400">${m.unit || "&nbsp;"}</div>`;
+    grid.appendChild(div);
+  }
+  drawAppQoeGauge(app, metrics);
+}
+
+// One headline arc gauge for the app's `primary_metric` (backend registry) --
+// the "shine" ask: a single at-a-glance QoE indicator rather than only plain
+// number tiles, reusing this file's existing inline-SVG-no-library approach.
+function drawAppQoeGauge(app, metrics) {
+  const container = document.getElementById("app-qoe-gauge");
+  container.innerHTML = "";
+  const metricDef = app.metrics.find(m => m.key === app.primary_metric);
+  if (!metricDef) return;
+  const value = metrics[metricDef.key];
+  const tier = qoeTier(value, metricDef);
+  const frac = qoeGaugeFraction(value, metricDef);
+
+  const ns = "http://www.w3.org/2000/svg";
+  const size = 64, cx = size / 2, cy = size / 2, r = size / 2 - 6;
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${size} ${Math.round(size * 0.62)}`);
+  svg.setAttribute("width", size);
+  svg.setAttribute("height", Math.round(size * 0.62));
+
+  function arcPath(f) {
+    // The gauge only ever spans a semicircle (f in [0,1] -> angle in [0,180deg]), so the SVG
+    // large-arc-flag must always be 0 (the "minor" arc) -- it was `f > 0.5 ? 1 : 0`, which for
+    // any f above 0.5 asked SVG for the MAJOR (>180deg, wrong-way-round) arc instead. At f=1
+    // both arcs are exactly 180deg so it looked fine there (masking the bug); anywhere strictly
+    // between 0.5 and 1 the fill visibly bulged out past the gauge's own background arc.
+    const startAngle = Math.PI, endAngle = Math.PI - Math.PI * f;
+    const x1 = cx + r * Math.cos(startAngle), y1 = cy - r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle), y2 = cy - r * Math.sin(endAngle);
+    return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  }
+  function arc(f, color) {
+    const p = document.createElementNS(ns, "path");
+    p.setAttribute("d", arcPath(f));
+    p.setAttribute("fill", "none");
+    p.setAttribute("stroke", color);
+    p.setAttribute("stroke-width", 6);
+    p.setAttribute("stroke-linecap", "round");
+    return p;
+  }
+  svg.appendChild(arc(1, "#e2e8f0"));
+  if (frac !== null) svg.appendChild(arc(Math.max(frac, 0.02), QOE_TIER_COLOR[tier] || "#94a3b8"));
+  container.appendChild(svg);
+
+  const label = document.createElement("div");
+  label.className = `text-center text-[10px] font-bold mono ${tier ? QOE_TIER_TEXT[tier] : "text-slate-400"}`;
+  label.textContent = (value === null || value === undefined) ? "–" : Number(value).toFixed(metricDef.decimals);
+  container.appendChild(label);
+  const sub = document.createElement("div");
+  sub.className = "text-center text-[9px] text-slate-400 leading-tight";
+  sub.textContent = metricDef.label;
+  container.appendChild(sub);
+}
+
+async function pollAppQoe() {
+  const app = selectedApp();
+  if (!app) return;
+  const qoe = await jget(`${API}/showcase/qoe/${app.id}`);
+  renderAppQoeTiles(app, qoe.metrics || {});
+  document.getElementById("app-qoe-source").textContent = qoe.source;
+}
+
+// `bodyOverride` lets restartShowcase() re-POST the exact body used last time
+// instead of re-reading the form -- unlike scenario restart this is NOT a
+// byte-identical repeat (real TCP/UDP traffic varies run to run even with
+// identical settings), just "run it again with the same settings."
+async function runShowcase(bodyOverride) {
+  const app = selectedApp();
+  const statusEl = document.getElementById("showcase-status");
+  if (!app) { statusEl.textContent = "No application selected."; return; }
+  document.getElementById("restart-showcase-btn").classList.add("hidden");
+  let body = bodyOverride;
+  if (!body) {
+    body = {};
+    if (app.id === "file_transfer") {
+      body.size_gb = parseFloat(document.getElementById("app-size-gb").value) || 1;
+    } else {
+      body.duration_s = parseFloat(document.getElementById("app-duration").value) || 30;
+    }
+    if (app.transport === "tcp") {
+      body.congestion_control = document.getElementById("cc-select").value;
+    }
+  }
+  statusEl.textContent = `Running ${app.label}…`;
+  setViewTab("live");
+  startLiveView(app);
+  try {
+    const {job_id} = await jpost(`${API}${app.endpoint}`, body);
+    lastShowcaseRequest = {app, body};
+    currentShowcaseJobId = job_id;
+    let job;
+    for (let i = 0; i < 300; i++) {
+      job = await jget(`${API}/showcase/jobs/${job_id}`);
+      if (job.status !== "running") break;
+      statusEl.textContent = `${app.label} running… (${i}s)`;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    statusEl.textContent = job.status === "done"
+      ? `${app.label} finished — see the run summary below.`
+      : `${app.label} failed: ${job.error || "unknown error"}`;
+    await pollAppQoe();
+    await updateLiveView(app);  // one last refresh so the final frame/reading is visible
+    if (job.status === "done") {
+      await renderRunSummary(app);
+      setViewTab("summary");
+    }
+  } catch (e) {
+    statusEl.textContent = `${app.label} unavailable: ${e.message}`;
+  } finally {
+    currentShowcaseJobId = null;
+    stopLiveView();
+    document.getElementById("restart-showcase-btn").classList.remove("hidden");
+  }
+}
+
+async function restartShowcase() {
+  if (!lastShowcaseRequest || lastShowcaseRequest.app.id !== selectedApp()?.id) return;
+  await runShowcase(lastShowcaseRequest.body);
+}
+
+// --- Congestion-control options: from the backend's live sysctl read, so BBR
+// --- only appears when the host actually has tcp_bbr loaded.
+async function loadCongestionControls() {
+  try {
+    const data = await jget(`${API}/system/congestion-controls`);
+    const sel = document.getElementById("cc-select");
+    sel.innerHTML = "";
+    for (const cc of data.available) {
+      const opt = document.createElement("option");
+      opt.value = cc; opt.textContent = cc;
+      if (cc === "cubic") opt.selected = true;
+      sel.appendChild(opt);
+    }
+  } catch (e) { /* keep whatever's in the markup */ }
+}
+
+// --- Container health: independent of any specific scenario/showcase, so a problem
+// --- (crashed/unhealthy container) is visible before a user picks something and hits a
+// --- confusing failure several clicks later. Backed by GET /api/system/health, which reuses
+// --- the same backend.showcases._watchdog check every showcase now runs before starting.
+async function pollSystemHealth() {
+  const badge = document.getElementById("system-health-badge");
+  try {
+    const data = await jget(`${API}/system/health`);
+    if (!data.docker_available) {
+      badge.textContent = "○ dry-run (no docker)";
+      badge.className = "px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-500";
+      badge.title = "Docker not detected -- showcases and real netem shaping are unavailable.";
+      return;
+    }
+    const entries = Object.entries(data.containers);
+    // "none" = running with no healthcheck defined (the expected/normal case for
+    // cosme-client/-server/-probe, see docker-compose.yml) -- counts as healthy here.
+    const bad = entries.filter(([, status]) => status !== "healthy" && status !== "none");
+    // Raw status strings ("none") read as broken out of context -- confirmed real user confusion:
+    // the badge says "4/4 healthy" but hovering shows 3x "none" + 1x "healthy", which looks like a
+    // contradiction unless you already know "none" means "no healthcheck defined, which is
+    // EXPECTED for this container" (see docker-compose.yml's own comment on why). Spelling that
+    // out in the tooltip itself, rather than assuming the viewer already knows the convention.
+    const STATUS_LABEL = {
+      healthy: "healthy",
+      none: "no healthcheck defined (stateless container -- expected, not a problem)",
+      starting: "starting…",
+      unhealthy: "UNHEALTHY",
+      stopped: "stopped",
+      missing: "missing",
+    };
+    const describe = (status) => STATUS_LABEL[status] || status;
+    if (bad.length === 0) {
+      badge.textContent = `● ${entries.length}/${entries.length} healthy`;
+      badge.className = "px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700";
+      badge.title = entries.map(([name, status]) => `${name}: ${describe(status)}`).join("\n");
+    } else {
+      badge.textContent = `✕ ${bad.map(([name]) => name).join(", ")}`;
+      badge.className = "px-2 py-1 rounded-full text-xs bg-red-100 text-red-700";
+      badge.title = entries.map(([name, status]) => `${name}: ${describe(status)}`).join("\n")
+        + "\n\nTry \"Reset containers\" or check `docker logs <name>`.";
+    }
+  } catch (e) {
+    badge.textContent = "health check failed";
+    badge.className = "px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-500";
+    badge.title = String(e);
+  }
+}
+
+// --- Orphaned-run detection: GET /api/system/active-run finds a scenario/showcase regardless
+// --- of which browser tab (if any still open) started it -- see the banner's own HTML comment.
+let orphanRun = null;  // the {kind, id, app?} currently shown in the banner, if any
+
+async function pollActiveRun() {
+  const banner = document.getElementById("orphan-run-banner");
+  const textEl = document.getElementById("orphan-run-text");
+  try {
+    const {active} = await jget(`${API}/system/active-run`);
+    const isMine = active && (
+      (active.kind === "scenario" && active.id === scenarioId) ||
+      (active.kind === "showcase" && active.id === currentShowcaseJobId)
+    );
+    if (!active || isMine) {
+      banner.classList.add("hidden");
+      orphanRun = null;
+      return;
+    }
+    orphanRun = active;
+    if (active.kind === "scenario") {
+      const elapsed = active.elapsed_s != null ? active.elapsed_s.toFixed(0) : "?";
+      const duration = active.duration_s != null ? active.duration_s.toFixed(0) : "?";
+      textEl.textContent = `⚠ A scenario is running in the background (not started from this tab/page load) — t=${elapsed}s / ${duration}s.`;
+    } else {
+      textEl.textContent = `⚠ A showcase (${active.app || "unknown app"}) is running in the background (not started from this tab/page load).`;
+    }
+    banner.classList.remove("hidden");
+  } catch (e) { /* transient poll failure -- keep whatever the banner currently shows */ }
+}
+
+async function stopOrphanRun() {
+  if (!orphanRun) return;
+  const btn = document.getElementById("orphan-run-stop-btn");
+  btn.disabled = true;
+  btn.textContent = "Stopping…";
+  try {
+    if (orphanRun.kind === "scenario") {
+      await jpost(`${API}/scenarios/${orphanRun.id}/stop`, {});
+    } else {
+      await jpost(`${API}/showcase/jobs/${orphanRun.id}/stop`, {});
+    }
+    await pollActiveRun();
+  } catch (e) {
+    alert(`Could not stop it: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Stop it";
+  }
+}
+
+// --- Geocoding: name/address -> coordinates for the custom-route inputs.
+async function geocodeFill(which) {
+  const name = document.getElementById(`${which}-name`).value;
+  const statusEl = document.getElementById("simulate-status");
+  const resultsEl = document.getElementById("geocode-results");
+  resultsEl.classList.add("hidden");
+  if (!name.trim()) { statusEl.textContent = "Type a place name first."; return; }
+  statusEl.textContent = `Looking up “${name}”…`;
+  try {
+    const data = await jget(`${API}/geocode?q=${encodeURIComponent(name)}`);
+    if (!data.results.length) {
+      statusEl.textContent = `No match for “${name}” — try a more specific name.`;
+      return;
+    }
+    if (data.results.length === 1) {
+      applyGeocodeResult(which, data.results[0]);
+      statusEl.textContent = `${which} set: ${data.results[0].display_name} (${data.source})`;
+      return;
+    }
+    // multiple candidates: quick pick list
+    resultsEl.innerHTML = `<div class="text-slate-500 mb-0.5">Pick the intended “${name}”:</div>`;
+    for (const r of data.results) {
+      const btn = document.createElement("button");
+      btn.className = "block w-full text-left px-1 py-0.5 rounded hover:bg-blue-100";
+      btn.textContent = r.display_name;
+      btn.addEventListener("click", () => {
+        applyGeocodeResult(which, r);
+        resultsEl.classList.add("hidden");
+        statusEl.textContent = `${which} set: ${r.display_name}`;
+      });
+      resultsEl.appendChild(btn);
+    }
+    resultsEl.classList.remove("hidden");
+    statusEl.textContent = "";
+  } catch (e) {
+    statusEl.textContent = `Geocoding failed: ${e.message}`;
+  }
+}
+
+function applyGeocodeResult(which, r) {
+  document.getElementById(`${which}-lat`).value = r.lat.toFixed(5);
+  document.getElementById(`${which}-lon`).value = r.lon.toFixed(5);
+  const marker = L.marker([r.lat, r.lon]).addTo(map);
+  if (which === "start") { if (startMarker) map.removeLayer(startMarker); startMarker = marker; }
+  else { if (endMarker) map.removeLayer(endMarker); endMarker = marker; }
+  map.setView([r.lat, r.lon], Math.max(map.getZoom(), 9));
+}
+
+document.getElementById("start-btn").addEventListener("click", () => startScenario().catch(console.error));
+document.getElementById("stop-btn").addEventListener("click", () => stopScenario().catch(console.error));
+document.getElementById("restart-btn").addEventListener("click", () => restartScenario().catch(console.error));
+document.getElementById("reset-containers-btn").addEventListener("click", () => resetContainers().catch(console.error));
+document.getElementById("orphan-run-stop-btn").addEventListener("click", () => stopOrphanRun().catch(console.error));
+document.getElementById("export-results-btn").addEventListener("click", () => exportResults().catch(console.error));
+document.getElementById("import-scenario-file").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) importScenario(file).catch(console.error);
+  e.target.value = "";  // allow re-importing the same file twice in a row
+});
+document.getElementById("run-showcase-btn").addEventListener("click", () => runShowcase().catch(console.error));
+document.getElementById("restart-showcase-btn").addEventListener("click", () => restartShowcase().catch(console.error));
+document.getElementById("tab-real-drive").addEventListener("click", () => setRouteMode("real_drive"));
+document.getElementById("tab-custom-route").addEventListener("click", () => setRouteMode("custom_route"));
+document.getElementById("tab-live-view").addEventListener("click", () => setViewTab("live"));
+document.getElementById("tab-run-summary").addEventListener("click", () => setViewTab("summary"));
+document.getElementById("simulate-route-btn").addEventListener("click", () => simulateCustomRoute().catch(console.error));
+document.getElementById("pick-start").addEventListener("click", () => { pickTarget = "start"; document.body.style.cursor = "crosshair"; });
+document.getElementById("pick-end").addEventListener("click", () => { pickTarget = "end"; document.body.style.cursor = "crosshair"; });
+document.getElementById("find-start").addEventListener("click", () => geocodeFill("start").catch(console.error));
+document.getElementById("find-end").addEventListener("click", () => geocodeFill("end").catch(console.error));
+document.getElementById("start-name").addEventListener("keydown", e => { if (e.key === "Enter") geocodeFill("start").catch(console.error); });
+document.getElementById("end-name").addEventListener("keydown", e => { if (e.key === "Enter") geocodeFill("end").catch(console.error); });
+for (const btn of document.querySelectorAll(".weather-btn")) {
+  btn.addEventListener("click", () => setWeatherMode(btn.dataset.mode));
+}
+
+initMap();
+loadDrives().catch(console.error);
+loadApps().catch(console.error);
+loadCongestionControls().catch(console.error);
+pollSystemHealth().catch(console.error);
+setInterval(() => pollSystemHealth().catch(console.error), 8000);
+pollActiveRun().catch(console.error);
+setInterval(() => pollActiveRun().catch(console.error), 5000);
+
+// Browsers heavily throttle setInterval in a backgrounded/unfocused tab (Chrome/Firefox/Safari
+// can drop it to ~once/minute or less) -- this is very likely why the orphan-run banner was
+// only ever seen right after a manual refresh: someone starts a showcase from another tab (or
+// this dashboard just isn't the focused tab for a while), and the 5s poll above is technically
+// still running but arbitrarily delayed until the tab is foregrounded again. Force an immediate,
+// un-throttled check the moment the tab becomes visible/focused again, instead of waiting for
+// whatever's left of the throttled interval to eventually fire.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    pollActiveRun().catch(console.error);
+    pollSystemHealth().catch(console.error);
+  }
+});
+window.addEventListener("focus", () => {
+  pollActiveRun().catch(console.error);
+  pollSystemHealth().catch(console.error);
+});
+</script>
+</body>
+</html>

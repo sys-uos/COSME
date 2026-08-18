@@ -1,0 +1,87 @@
+{
+  "name": "voip_composed_6",
+  "app": "voip",
+  "arm": "composed",
+  "seed": 404,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "cc": null,
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": null,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 404
+  },
+  "qdisc_before": "qdisc netem 81c3: root refcnt 7 limit 1000 delay 10.3ms  1.88ms rate 30Mbit",
+  "real_elapsed_s": 612.1,
+  "job": {
+    "status": "done",
+    "app": "voip",
+    "started_at": 1786184322.3327355,
+    "duration_s": 600.0,
+    "media_plane": "webrtc/aiortc (two-peer)",
+    "video_frames_received": 0,
+    "audio_frames_received": 25155,
+    "log_tail": "{\"n_samples\": 520, \"video_frames_received\": 0, \"audio_frames_received\": 25155, \"totals\": {\"audio\": {\"packets_lost\": 3072, \"packets_received\": 26739, \"loss_frac\": 0.10304921002314582}}, \"rtt_ms_mean\": 29.11477618620043, \"jitter_ms_mean\": {\"audio\": 3.60693108974359, \"video\": null}, \"audio_bitrate_kbps_mean\": 112.33823076923076, \"video_bitrate_kbps_mean\": null, \"framerate_mean\": null, \"last\": {\"t\": 1786184925.2271276, \"app\": \"voip\", \"rtt_ms\": -75.65335107024363, \"audio\": {\"jitter_ms\": 2.8125, \"loss_frac\": 0.0, \"frames_per_s\": 0, \"bitrate_kbps\": 0.72, \"level\": 0.010490638203918934}, \"video\": null}}\n",
+    "totals": {
+      "packets": {
+        "audio": {
+          "packets_lost": 3072,
+          "packets_received": 26739,
+          "loss_frac": 0.10304921002314582
+        }
+      },
+      "n_samples_generated": 520,
+      "rtt_ms_mean": 29.11477618620043,
+      "jitter_ms_mean": {
+        "audio": 3.60693108974359,
+        "video": null
+      },
+      "audio_bitrate_kbps_mean": 112.33823076923076,
+      "video_bitrate_kbps_mean": null,
+      "framerate_mean": null
+    }
+  },
+  "qoe": {
+    "mos": 3.45,
+    "r_factor": 66.9,
+    "rtt_ms": 29.1,
+    "jitter_ms": 3.6,
+    "loss_pct": 10.3,
+    "audio_bitrate_kbps": 112.0,
+    "packets_lost": 3072,
+    "packets_received": 26739,
+    "n_samples": 520,
+    "source": "in-container totals (unbiased)"
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 81c3: root refcnt 7 limit 1000 delay 15.5ms  6.92ms rate 30Mbit",
+  "scenario_status": {
+    "id": "de0c0d3b-a27b-48fd-81d4-326f2eb0b111",
+    "elapsed_s": 608.8660982840229,
+    "duration_s": 3758.500554077,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 13096,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 17.179ms 5.633ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 17.179ms 5.633ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 13.941ms 4.927ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 13.941ms 4.927ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.371ms 5.290ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.371ms 5.290ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 15.476ms 6.924ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 15.476ms 6.924ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 15.476ms 6.924ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 15.476ms 6.924ms rate 30.000mbit"
+    ],
+    "last_loss_command": "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 15.476ms 6.924ms rate 30.000mbit",
+    "playback_lag_s": 0.251,
+    "playback_ticks_skipped": 189,
+    "playback_ticks_total": 40171,
+    "start_time": 1786184319.209135,
+    "speed": 1.0
+  }
+}

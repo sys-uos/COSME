@@ -1,0 +1,83 @@
+{
+  "name": "video_conferencing_reference_9",
+  "app": "video_conferencing",
+  "arm": "reference",
+  "seed": 1234,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "cc": null,
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": 12.0,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 1234
+  },
+  "qdisc_before": "qdisc netem 814f: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "real_elapsed_s": 609.6,
+  "job": {
+    "status": "done",
+    "app": "video_conferencing",
+    "started_at": 1786148682.7593503,
+    "duration_s": 600.0,
+    "media_plane": "webrtc/aiortc (two-peer)",
+    "video_frames_received": 14314,
+    "audio_frames_received": 29807,
+    "log_tail": "{\"n_samples\": 567, \"video_frames_received\": 14314, \"audio_frames_received\": 29807, \"totals\": {\"audio\": {\"packets_lost\": 0, \"packets_received\": 29811, \"loss_frac\": 0.0}, \"video\": {\"packets_lost\": 0, \"packets_received\": 14443, \"loss_frac\": 0.0}}, \"rtt_ms_mean\": 26.78437917596985, \"jitter_ms_mean\": {\"audio\": 0.7886537330981778, \"video\": 1.9805408583186332}, \"audio_bitrate_kbps_mean\": null, \"video_bitrate_kbps_mean\": 176.19733333333332, \"framerate_mean\": 25.24514991181658, \"last\": {\"t\": 1786149285.098792, \"app\": \"video_conferencing\", \"rtt_ms\": 25.534206441649367, \"audio\": {\"jitter_ms\": 1.7916666666666667, \"loss_frac\": 0.0, \"frames_per_s\": 0, \"bitrate_kbps\": null}, \"video\": {\"jitter_ms\": 2.7222222222222223, \"loss_frac\": 0.0, \"framerate\": 0, \"frame_width\": 320, \"frame_height\": 180, \"bitrate_kbps\": 2.896}}}\n",
+    "totals": {
+      "packets": {
+        "audio": {
+          "packets_lost": 0,
+          "packets_received": 29811,
+          "loss_frac": 0.0
+        },
+        "video": {
+          "packets_lost": 0,
+          "packets_received": 14443,
+          "loss_frac": 0.0
+        }
+      },
+      "n_samples_generated": 567,
+      "rtt_ms_mean": 26.78437917596985,
+      "jitter_ms_mean": {
+        "audio": 0.7886537330981778,
+        "video": 1.9805408583186332
+      },
+      "audio_bitrate_kbps_mean": null,
+      "video_bitrate_kbps_mean": 176.19733333333332,
+      "framerate_mean": 25.24514991181658
+    }
+  },
+  "qoe": {
+    "video_bitrate_kbps": 176.0,
+    "framerate": 25.2,
+    "loss_pct": 0.0,
+    "rtt_ms": 26.8,
+    "jitter_ms": 0.8,
+    "packets_lost": 0,
+    "packets_received": 14443,
+    "n_samples": 567,
+    "source": "in-container totals (unbiased)"
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 814f: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "scenario_status": {
+    "id": "a169b0ee-8c2b-4e2d-a907-92f23b35f12d",
+    "elapsed_s": 609.1164204799861,
+    "duration_s": 659.99,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 2,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit"
+    ],
+    "last_loss_command": null,
+    "playback_lag_s": 0.086,
+    "playback_ticks_skipped": 0,
+    "playback_ticks_total": 2,
+    "start_time": 1786148679.566236,
+    "speed": 1.0
+  }
+}

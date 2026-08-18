@@ -1,0 +1,612 @@
+{
+  "file_transfer (bbr)": {
+    "duration_s": {
+      "reference": {
+        "n": 15,
+        "mean": 27.969,
+        "min": 27.963,
+        "max": 27.986,
+        "sd": 0.007
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 28.977,
+        "min": 28.944,
+        "max": 29.013,
+        "sd": 0.021
+      },
+      "composed": {
+        "n": 15,
+        "mean": 29.787,
+        "min": 29.185,
+        "max": 31.322,
+        "sd": 0.584
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 7.947995483981174e-08
+    },
+    "throughput_mbps": {
+      "reference": {
+        "n": 15,
+        "mean": 307.125,
+        "min": 306.937,
+        "max": 307.188,
+        "sd": 0.074
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 296.442,
+        "min": 296.07,
+        "max": 296.773,
+        "sd": 0.219
+      },
+      "composed": {
+        "n": 15,
+        "mean": 288.478,
+        "min": 274.246,
+        "max": 294.328,
+        "sd": 5.49
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 1.9789643257439593e-08
+    }
+  },
+  "file_transfer (cubic)": {
+    "duration_s": {
+      "reference": {
+        "n": 15,
+        "mean": 27.611,
+        "min": 27.472,
+        "max": 29.402,
+        "sd": 0.496
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 28.401,
+        "min": 27.89,
+        "max": 28.661,
+        "sd": 0.301
+      },
+      "composed": {
+        "n": 15,
+        "mean": 33.358,
+        "min": 28.706,
+        "max": 55.447,
+        "sd": 7.761
+      },
+      "separated": false,
+      "p_vs_reference": 0.004208508374758058,
+      "p_vs_obstruction": 0.013441938900283112
+    },
+    "throughput_mbps": {
+      "reference": {
+        "n": 15,
+        "mean": 311.191,
+        "min": 292.159,
+        "max": 312.674,
+        "sd": 5.269
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 302.482,
+        "min": 299.708,
+        "max": 307.992,
+        "sd": 3.237
+      },
+      "composed": {
+        "n": 15,
+        "mean": 267.079,
+        "min": 154.92,
+        "max": 299.233,
+        "sd": 44.498
+      },
+      "separated": true,
+      "p_vs_reference": 0.00013742858220866516,
+      "p_vs_obstruction": 0.0021173479327125655
+    }
+  },
+  "remote_desktop": {
+    "effective_fps_mean": {
+      "reference": {
+        "n": 13,
+        "mean": 5.308,
+        "min": 5.2,
+        "max": 5.7,
+        "sd": 0.161
+      },
+      "obstruction": {
+        "n": 14,
+        "mean": 3.536,
+        "min": 3.2,
+        "max": 3.9,
+        "sd": 0.279
+      },
+      "composed": {
+        "n": 13,
+        "mean": 3.015,
+        "min": 2.0,
+        "max": 3.6,
+        "sd": 0.445
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.00030254209914004626
+    },
+    "keystroke_latency_ms_median": {
+      "reference": {
+        "n": 13,
+        "mean": 179.608,
+        "min": 175.3,
+        "max": 180.7,
+        "sd": 1.861
+      },
+      "obstruction": {
+        "n": 14,
+        "mean": 252.286,
+        "min": 239.2,
+        "max": 262.7,
+        "sd": 7.277
+      },
+      "composed": {
+        "n": 13,
+        "mean": 247.038,
+        "min": 216.2,
+        "max": 324.6,
+        "sd": 25.509
+      },
+      "separated": false,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.4744592260641447
+    },
+    "keystroke_latency_ms_p95": {
+      "reference": {
+        "n": 13,
+        "mean": 182.946,
+        "min": 181.3,
+        "max": 184.2,
+        "sd": 0.789
+      },
+      "obstruction": {
+        "n": 14,
+        "mean": 536.764,
+        "min": 306.4,
+        "max": 861.7,
+        "sd": 170.662
+      },
+      "composed": {
+        "n": 13,
+        "mean": 910.708,
+        "min": 589.5,
+        "max": 1763.7,
+        "sd": 371.727
+      },
+      "separated": true,
+      "p_vs_reference": 1.6784351686283117e-12,
+      "p_vs_obstruction": 0.0009100587131429805
+    },
+    "keystroke_timeout_pct": {
+      "reference": {
+        "n": 13,
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "sd": 0.0
+      },
+      "obstruction": {
+        "n": 14,
+        "mean": 0.472,
+        "min": 0.0,
+        "max": 1.05,
+        "sd": 0.421
+      },
+      "composed": {
+        "n": 13,
+        "mean": 0.971,
+        "min": 0.0,
+        "max": 2.44,
+        "sd": 0.704
+      },
+      "separated": false,
+      "p_vs_reference": 6.592548813522114e-07,
+      "p_vs_obstruction": 0.026808494942904604
+    }
+  },
+  "surveillance": {
+    "freeze_count": {
+      "reference": {
+        "n": 15,
+        "mean": 1.0,
+        "min": 1,
+        "max": 1,
+        "sd": 0.0
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 147.133,
+        "min": 111,
+        "max": 177,
+        "sd": 15.597
+      },
+      "composed": {
+        "n": 15,
+        "mean": 183.333,
+        "min": 157,
+        "max": 210,
+        "sd": 15.701
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 2.37260433522124e-10
+    },
+    "longest_freeze_s": {
+      "reference": {
+        "n": 15,
+        "mean": 0.249,
+        "min": 0.24,
+        "max": 0.26,
+        "sd": 0.005
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 2.714,
+        "min": 1.79,
+        "max": 4.42,
+        "sd": 0.921
+      },
+      "composed": {
+        "n": 15,
+        "mean": 2.944,
+        "min": 1.87,
+        "max": 4.97,
+        "sd": 0.958
+      },
+      "separated": false,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.5026584203915103
+    },
+    "mean_bitrate_kbps": {
+      "reference": {
+        "n": 15,
+        "mean": 936.26,
+        "min": 936.2,
+        "max": 936.6,
+        "sd": 0.112
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 851.107,
+        "min": 847.7,
+        "max": 855.0,
+        "sd": 1.941
+      },
+      "composed": {
+        "n": 15,
+        "mean": 835.027,
+        "min": 829.1,
+        "max": 843.0,
+        "sd": 3.913
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.0
+    },
+    "total_freeze_s": {
+      "reference": {
+        "n": 15,
+        "mean": 0.249,
+        "min": 0.24,
+        "max": 0.26,
+        "sd": 0.005
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 65.929,
+        "min": 59.43,
+        "max": 70.81,
+        "sd": 3.257
+      },
+      "composed": {
+        "n": 15,
+        "mean": 77.787,
+        "min": 69.39,
+        "max": 87.27,
+        "sd": 5.404
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 3.3706371027619753e-13
+    }
+  },
+  "video_conferencing": {
+    "framerate": {
+      "reference": {
+        "n": 15,
+        "mean": 25.2,
+        "min": 25.2,
+        "max": 25.2,
+        "sd": 0.0
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 27.973,
+        "min": 27.6,
+        "max": 28.3,
+        "sd": 0.243
+      },
+      "composed": {
+        "n": 15,
+        "mean": 28.627,
+        "min": 28.1,
+        "max": 29.4,
+        "sd": 0.369
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 9.874336903692438e-09
+    },
+    "jitter_ms": {
+      "reference": {
+        "n": 15,
+        "mean": 0.933,
+        "min": 0.8,
+        "max": 1.1,
+        "sd": 0.123
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 1.46,
+        "min": 1.3,
+        "max": 1.8,
+        "sd": 0.14
+      },
+      "composed": {
+        "n": 15,
+        "mean": 3.78,
+        "min": 3.7,
+        "max": 4.0,
+        "sd": 0.094
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.0
+    },
+    "loss_pct": {
+      "reference": {
+        "n": 15,
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "sd": 0.0
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 22.987,
+        "min": 9.49,
+        "max": 29.93,
+        "sd": 6.15
+      },
+      "composed": {
+        "n": 15,
+        "mean": 17.435,
+        "min": 6.33,
+        "max": 28.89,
+        "sd": 6.163
+      },
+      "separated": false,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.013522261768127652
+    },
+    "rtt_ms": {
+      "reference": {
+        "n": 15,
+        "mean": 26.527,
+        "min": 26.0,
+        "max": 27.0,
+        "sd": 0.269
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 28.033,
+        "min": 26.1,
+        "max": 33.7,
+        "sd": 1.936
+      },
+      "composed": {
+        "n": 15,
+        "mean": 31.08,
+        "min": 27.2,
+        "max": 38.0,
+        "sd": 2.911
+      },
+      "separated": true,
+      "p_vs_reference": 1.620355627451886e-09,
+      "p_vs_obstruction": 0.0007366394169734392
+    },
+    "video_bitrate_kbps": {
+      "reference": {
+        "n": 15,
+        "mean": 176.0,
+        "min": 176.0,
+        "max": 176.0,
+        "sd": 0.0
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 192.667,
+        "min": 185.0,
+        "max": 198.0,
+        "sd": 3.374
+      },
+      "composed": {
+        "n": 15,
+        "mean": 195.533,
+        "min": 190.0,
+        "max": 201.0,
+        "sd": 3.72
+      },
+      "separated": false,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.027091954306608823
+    }
+  },
+  "voip": {
+    "audio_bitrate_kbps": {
+      "reference": {
+        "n": 15,
+        "mean": 111.933,
+        "min": 111.0,
+        "max": 112.0,
+        "sd": 0.258
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 111.467,
+        "min": 110.0,
+        "max": 113.0,
+        "sd": 0.834
+      },
+      "composed": {
+        "n": 15,
+        "mean": 111.6,
+        "min": 109.0,
+        "max": 113.0,
+        "sd": 0.986
+      },
+      "separated": false,
+      "p_vs_reference": 0.20572335674149045,
+      "p_vs_obstruction": 0.6899888854395897
+    },
+    "jitter_ms": {
+      "reference": {
+        "n": 15,
+        "mean": 0.707,
+        "min": 0.5,
+        "max": 0.9,
+        "sd": 0.171
+      },
+      "obstruction": {
+        "n": 14,
+        "mean": 1.293,
+        "min": 1.1,
+        "max": 1.5,
+        "sd": 0.138
+      },
+      "composed": {
+        "n": 15,
+        "mean": 3.673,
+        "min": 3.5,
+        "max": 4.1,
+        "sd": 0.153
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.0
+    },
+    "loss_pct": {
+      "reference": {
+        "n": 15,
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "sd": 0.0
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 8.993,
+        "min": 8.59,
+        "max": 9.35,
+        "sd": 0.199
+      },
+      "composed": {
+        "n": 15,
+        "mean": 10.363,
+        "min": 9.99,
+        "max": 10.84,
+        "sd": 0.271
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.0
+    },
+    "mos": {
+      "reference": {
+        "n": 15,
+        "mean": 4.4,
+        "min": 4.4,
+        "max": 4.4,
+        "sd": 0.0
+      },
+      "obstruction": {
+        "n": 14,
+        "mean": 3.611,
+        "min": 3.57,
+        "max": 3.66,
+        "sd": 0.023
+      },
+      "composed": {
+        "n": 15,
+        "mean": 3.439,
+        "min": 3.38,
+        "max": 3.48,
+        "sd": 0.033
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.0
+    },
+    "r_factor": {
+      "reference": {
+        "n": 15,
+        "mean": 92.84,
+        "min": 92.8,
+        "max": 92.9,
+        "sd": 0.051
+      },
+      "obstruction": {
+        "n": 14,
+        "mean": 70.279,
+        "min": 69.4,
+        "max": 71.3,
+        "sd": 0.493
+      },
+      "composed": {
+        "n": 15,
+        "mean": 66.727,
+        "min": 65.5,
+        "max": 67.6,
+        "sd": 0.683
+      },
+      "separated": true,
+      "p_vs_reference": 0.0,
+      "p_vs_obstruction": 0.0
+    },
+    "rtt_ms": {
+      "reference": {
+        "n": 15,
+        "mean": 25.353,
+        "min": 25.2,
+        "max": 25.5,
+        "sd": 0.092
+      },
+      "obstruction": {
+        "n": 15,
+        "mean": 26.08,
+        "min": 24.8,
+        "max": 27.7,
+        "sd": 0.924
+      },
+      "composed": {
+        "n": 15,
+        "mean": 30.373,
+        "min": 27.1,
+        "max": 40.0,
+        "sd": 3.132
+      },
+      "separated": true,
+      "p_vs_reference": 5.470424113696026e-10,
+      "p_vs_obstruction": 3.54868745944259e-07
+    }
+  }
+}

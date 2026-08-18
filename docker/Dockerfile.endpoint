@@ -1,0 +1,36 @@
+# Minimal endpoint container for COSME's emulated link.
+#
+# Each of cosme-client/cosme-server is one of the "two interconnected Linux
+# network namespaces with a virtual NIC" the paper describes -- a Docker
+# container already *is* a network namespace with a veth pair to the bridge,
+# so no separate `ip netns`/veth setup is needed; NET_ADMIN just lets the
+# orchestrator run `tc qdisc ...` inside it (see docker-compose.yml).
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    iproute2 \
+    iperf3 \
+    iputils-ping \
+    netcat-openbsd \
+    curl \
+    python3 \
+    procps \
+    ffmpeg \
+    tigervnc-standalone-server \
+    xterm \
+    xfonts-base \
+    python3-aiortc \
+    python3-pil \
+    && rm -rf /var/lib/apt/lists/*
+# `iproute2` ships both `tc`/`ss` and the netem distribution tables (e.g.
+# pareto.dist, under /usr/lib/tc/) some configs reference; `ss` is used for
+# showcase QoE collection (TCP retransmit counters etc.); `python3` runs the
+# file-transfer showcase's HTTP server (see backend/showcases/file_transfer.py)
+# and the surveillance receiver probe (/opt/cosme/surveillance_probe.py,
+# bind-mounted -- see docker-compose.yml); `ffmpeg` is the surveillance
+# showcase's sender+decoder; `tigervnc-standalone-server`+`xterm` are the
+# remote-desktop showcase's server side (see backend/showcases/remote_desktop.py);
+# `python3-pil` is needed by aiortc's `VideoFrame.to_image()`, used by
+# webrtc_peer.py to produce the dashboard's live-view JPEG frames.
+
+CMD ["sleep", "infinity"]

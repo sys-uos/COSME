@@ -1,0 +1,54 @@
+{
+  "name": "remote_desktop_obstruction_8",
+  "app": "remote_desktop",
+  "arm": "obstruction",
+  "seed": 808,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "cc": "cubic",
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": 12.0,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 808
+  },
+  "qdisc_before": "qdisc netem 811e: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "real_elapsed_s": 23.9,
+  "job": {
+    "status": "error",
+    "app": "remote_desktop",
+    "started_at": 1786135080.436837,
+    "error": "VNC probe failed: Traceback (most recent call last):\n  File \"/usr/local/lib/python3.12/site-packages/vncdotool/api.py\", line 110, in callable_threaded_proxy\n    result = self.queue.get(timeout=self.timeout)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/queue.py\", line 179, in get\n    raise Empty\n_queue.Empty\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/app/vnc_probe.py\", line 277, in <module>\n    main()\n  File \"/app/vnc_probe.py\", line 176, in main\n    last_activity_digest = region_digest(client, ACTIVITY_REGION, deadline=deadline)\n                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/vnc_probe.py\", line 143, in region_digest\n    _rfb_call(client.captureRegion, _CAP_PATH, *region, deadline=deadline)\n  File \"/app/vnc_probe.py\", line 138, in _rfb_call\n    raise last_exc\n  File \"/app/vnc_probe.py\", line 133, in _rfb_call\n    return fn(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/site-packages/vncdotool/api.py\", line 112, in callable_threaded_proxy\n    raise TimeoutError(\"Timeout while waiting for client response\")\nTimeoutError: Timeout while waiting for client response\n"
+  },
+  "qoe": {},
+  "app_stats_n_received": 0,
+  "qdisc_after": "qdisc netem 811e: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "scenario_status": {
+    "id": "77eb52f3-4457-465b-ad53-f1961dd34fa4",
+    "elapsed_s": 23.35246543897665,
+    "duration_s": 659.99,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 10,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit"
+    ],
+    "last_loss_command": "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 30.000mbit",
+    "playback_lag_s": 0.14,
+    "playback_ticks_skipped": 0,
+    "playback_ticks_total": 1133,
+    "start_time": 1786135077.224714,
+    "speed": 1.0
+  }
+}

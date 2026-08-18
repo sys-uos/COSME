@@ -1,0 +1,25 @@
+{
+  "profile": {
+    "loss_pct": 1.5,
+    "delay_ms": 25.0,
+    "jitter_ms": 8.0,
+    "rate_mbit": 50.0
+  },
+  "generated_at": 1785933885.6077204,
+  "results": [
+    {
+      "congestion_control": "cubic",
+      "throughput_mbps": 2.490616,
+      "duration_s": 172.445703,
+      "size_mb": 53.687091,
+      "tcp_retransmits": null
+    },
+    {
+      "congestion_control": "bbr",
+      "throughput_mbps": 44.296496,
+      "duration_s": 9.695951,
+      "size_mb": 53.687091,
+      "tcp_retransmits": null
+    }
+  ]
+}

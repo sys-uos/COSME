@@ -1,0 +1,232 @@
+# Two endpoint containers on a bridge network, each with NET_ADMIN so the
+# host-side orchestrator (backend/orchestrator.py + netem_backend.py) can
+# `docker exec ... tc qdisc ...` inside them to shape the emulated link.
+#
+# This is the primary emulation target per project decision (Docker instead
+# of bare root network namespaces -- less host privilege required, more
+# portable to a conference laptop). Requires Docker with NET_ADMIN support
+# (standard on Linux hosts); verified end-to-end on a real Docker host
+# (see README.md "What was and wasn't verified").
+services:
+  cosme-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.endpoint
+    container_name: cosme-server
+    # `restart:` recovers from the container process itself crashing/OOMing.
+    # `healthcheck:` below is deliberately NOT a generic "is the container running" check (Docker
+    # already tracks that natively) or an app-level check (showcases provision http.server/
+    # Xtigervnc on demand, not always-on, so there's nothing fixed to probe there -- that
+    # readiness lives in backend/showcases/_watchdog.py, checked at the start of each run). It's
+    # a LOCAL routing-table lookup to cosme-client's fixed IP: a pure kernel-side check (`ip route
+    # get` never sends a packet), so it stays instant and never false-positives just because a
+    # scenario is currently applying heavy netem loss/delay to eth0 (confirmed live: still
+    # succeeds in <0.15s even under a 95% loss / 500ms delay netem profile) -- while still
+    # correctly catching a genuinely broken/missing interface. Not primarily aimed at
+    # cosme-server itself (which doesn't have the netns-sharing problem probe below does) so much
+    # as completing the same check symmetrically for the badge's "is the whole link's plumbing
+    # sane" story.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ip", "route", "get", "10.42.0.11"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    cap_add:
+      - NET_ADMIN
+    networks:
+      cosme-link:
+        ipv4_address: 10.42.0.10
+    ports:
+      # Bound to loopback deliberately: only the host-side backend needs these,
+      # and Docker-published ports bypass ufw (DOCKER iptables chain), so a bare
+      # "5201:5201" would silently expose them to the whole LAN.
+      - "127.0.0.1:5201:5201" # iperf3 (legacy/manual testing)
+      - "127.0.0.1:8081:8081" # file-transfer showcase HTTP server (see backend/showcases/file_transfer.py)
+    volumes:
+      - ./media:/srv/media:ro # prepared by scripts/prepare_media_assets.sh
+      - ./endpoint-scripts:/opt/cosme:ro # probe scripts, editable without an image rebuild
+      # Writable, nested INSIDE the read-only /srv/media bind mount above (a more
+      # specific bind mount overlays the broader read-only one for that subtree) --
+      # lets the file-transfer showcase generate an exact-size real-content asset
+      # (see backend/showcases/file_transfer.py's _ensure_sized_asset) without
+      # touching the real (read-only, prepared) media files. Deliberately a plain
+      # disk-backed bind mount, NOT tmpfs: tmpfs is RAM-backed and Docker defaults
+      # its size cap to 50% of host RAM (confirmed: silently capped a 5GB request
+      # at 3.9GB on a 7.8GB host, spinning the generator script for the full 120s
+      # timeout instead of failing cleanly) -- multi-GB generated files have no
+      # business competing with every other container for host memory anyway.
+      - ./media/sized:/srv/media/sized
+
+  cosme-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.endpoint
+    container_name: cosme-client
+    restart: unless-stopped
+    # See cosme-server's own healthcheck comment for the full rationale (same `ip route get`
+    # local-lookup approach, symmetric target).
+    healthcheck:
+      test: ["CMD", "ip", "route", "get", "10.42.0.10"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    cap_add:
+      - NET_ADMIN
+    networks:
+      cosme-link:
+        ipv4_address: 10.42.0.11
+    depends_on:
+      - cosme-server
+    volumes:
+      - ./media:/srv/media:ro
+      - ./endpoint-scripts:/opt/cosme:ro
+
+  # VNC showcase probe: vncdotool is pip-only (not in Debian), so it gets its
+  # own tiny container instead of bloating the endpoint image. Shares
+  # cosme-client's netns so its RFB traffic is shaped like any client traffic.
+  # NOTE: netns-sharing means this container's networking breaks whenever
+  # cosme-client's does -- confirmed live this session to include not just a
+  # full recreate but even a plain `docker stop`/`start` of cosme-client alone
+  # (probe's routing to cosme-server silently goes to "Network is unreachable"
+  # afterwards). This means cosme-client's `restart: unless-stopped` policy
+  # above has a real gap: if it ever actually fires (recovering from a crash),
+  # probe is left broken until someone runs
+  # `docker compose up -d --force-recreate probe` -- there's no built-in
+  # docker-compose mechanism to chain that automatically off another
+  # service's restart event. Still true (would need e.g. a small external
+  # watcher, or moving the VNC probe off shared-netns entirely, neither
+  # attempted) -- but the healthcheck below at least makes the broken state
+  # VISIBLE (GET /api/system/health, the dashboard badge) instead of only
+  # surfacing as a confusing VNC-showcase failure several clicks later.
+  probe:
+    build:
+      context: ./probe
+    container_name: cosme-probe
+    network_mode: "service:cosme-client"
+    restart: unless-stopped
+    # This is THE healthcheck that actually matters for this container: `ip route get` to
+    # cosme-server's fixed IP, run from INSIDE probe's own (shared-with-client) network
+    # namespace, directly reproduces the exact documented failure ("Network is unreachable")
+    # the moment it happens, rather than waiting for a VNC showcase run to trip over it. Same
+    # pure-local-lookup property as cosme-client/-server's own healthchecks (see cosme-server's
+    # comment) -- never false-positives from netem shaping, since no packet is actually sent.
+    healthcheck:
+      test: ["CMD", "ip", "route", "get", "10.42.0.10"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - cosme-client
+
+  # Self-hosted OSRM routing server, matching the ObLoS website's hardcoded
+  # `http://localhost:5000` default (models/ObLoS/website/src/osrm-api/index.ts).
+  # Per project decision: covers the whole of Germany, not just a regional
+  # extract. One-time preprocessing (NOT done here -- see scripts/prepare_osrm.sh)
+  # must populate ./osrm-data/germany-latest.osrm{,.*} before this can start;
+  # whole-Germany MLD preprocessing is a real one-time cost (significant RAM
+  # and wall-clock time) -- run it ahead of the conference, not on-site.
+  osrm:
+    image: osrm/osrm-backend
+    container_name: cosme-osrm
+    command: ["osrm-routed", "--algorithm", "mld", "/data/germany-latest.osrm"]
+    # Confirmed live: osrm-routed loading the whole-Germany MLD dataset (~4.6-4.7GB RSS) is a
+    # real OOM-kill target on a host this size, ESPECIALLY with no swap active (which this host
+    # didn't have running at the time, despite a swapfile already existing from an earlier
+    # prepare_osrm.sh session -- it just wasn't `swapon`'d or in /etc/fstab, so it didn't survive
+    # whatever last touched the host; both fixed separately, see README/CLAUDE.md). Exit code 137
+    # (OOMKilled=true) with no restart policy meant this container just stayed dead until someone
+    # manually noticed and restarted it -- from the dashboard/oblos-live's perspective that's
+    # indistinguishable from "cosme-osrm was never started," except worse: a container that
+    # EXISTS but is STOPPED drops out of Docker's embedded DNS for the other containers, so
+    # lookups for "cosme-osrm" fail with a genuine name-resolution error, not just
+    # connection-refused -- confirmed live, this is exactly what a "max retries exceeded ...
+    # Name or service not known" report from the backend means.
+    restart: unless-stopped
+    # No curl/wget/python3 in this minimal Debian image, but bash IS present -- a bare TCP
+    # connect via bash's /dev/tcp is enough to confirm the port is actually accepting
+    # connections (not just that the container process exists). Generous start_period: loading
+    # the whole-Germany dataset genuinely takes real time (observed ~30s+ this session).
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/5000"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    ports:
+      - "127.0.0.1:5000:5000" # loopback-only: see note on cosme-server's ports
+    volumes:
+      - ./osrm-data:/data:ro
+    networks:
+      cosme-link:
+        ipv4_address: 10.42.0.3 # so the dockerized backend can reach it by name (COSME_OSRM_URL)
+
+  # Dockerized backend. Needs real privilege because it shapes traffic on its
+  # SIBLING containers: `docker exec`/`docker inspect` (hence the socket
+  # mount) and `nsenter -t <host-pid> -n sysctl ...` for TCP congestion
+  # control (hence `pid: host` + `privileged: true` -- this also means no
+  # host sudoers rule is needed anymore, since the process runs as root; see
+  # backend/showcases/file_transfer.py's `_nsenter_cmd`).
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: cosme-backend
+    privileged: true
+    pid: host
+    restart: unless-stopped
+    # Real always-on service (unlike cosme-client/-server/-probe above), so a real
+    # healthcheck is meaningful here -- python3 (no curl in this image) hitting its own
+    # /api/health. GET /api/system/health (added alongside this) is the richer,
+    # dashboard-facing version of this same idea, aggregating the OTHER containers'
+    # status; this one just answers "is the backend process itself alive."
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:8731/api/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ..:/app # whole repo: backend/ code, models/ data (~2.7GB, not COPYed), traces/ (read-write caches)
+    networks:
+      cosme-link:
+        ipv4_address: 10.42.0.2
+    ports:
+      - "8731:8731" # LAN dashboard access; Docker-published ports bypass ufw
+    environment:
+      - COSME_STATS_URL=http://10.42.0.2:8731/api/showcase/app-stats
+      - COSME_OSRM_URL=http://cosme-osrm:5000
+    depends_on:
+      - cosme-server
+      - cosme-client
+      - probe
+
+  # Static file server for frontend/index.html -- no build needed, just the
+  # vanilla python3 image with the repo's frontend/ bind-mounted read-only.
+  frontend:
+    image: python:3.12-slim
+    container_name: cosme-frontend
+    working_dir: /app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:8732/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ../frontend:/app:ro
+    command: ["python3", "-m", "http.server", "8732"]
+    ports:
+      - "8732:8732"
+
+networks:
+  cosme-link:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.42.0.0/24

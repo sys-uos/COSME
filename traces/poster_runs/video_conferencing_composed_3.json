@@ -1,0 +1,90 @@
+{
+  "name": "video_conferencing_composed_3",
+  "app": "video_conferencing",
+  "arm": "composed",
+  "seed": 2026,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": null,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 2026
+  },
+  "qdisc_before": "qdisc netem 8072: root refcnt 7 limit 1000 delay 17.9ms  5.23ms rate 30Mbit",
+  "real_elapsed_s": 612.3,
+  "job": {
+    "status": "done",
+    "app": "video_conferencing",
+    "started_at": 1786036611.4668694,
+    "duration_s": 600.0,
+    "media_plane": "webrtc/aiortc (two-peer)",
+    "video_frames_received": 14293,
+    "audio_frames_received": 25248,
+    "log_tail": "{\"n_samples\": 504, \"video_frames_received\": 14293, \"audio_frames_received\": 25248, \"totals\": {\"audio\": {\"packets_lost\": 2991, \"packets_received\": 26820, \"loss_frac\": 0.10033209218073866}, \"video\": {\"packets_lost\": 626, \"packets_received\": 2850, \"loss_frac\": 0.18009205983889529}}, \"rtt_ms_mean\": 30.13435281838154, \"jitter_ms_mean\": {\"audio\": 3.7003968253968242, \"video\": 105.65588624338619}, \"audio_bitrate_kbps_mean\": null, \"video_bitrate_kbps_mean\": 191.58098412698405, \"framerate_mean\": 28.359126984126984, \"last\": {\"t\": 1786037214.2284205, \"app\": \"video_conferencing\", \"rtt_ms\": 24.896247479364778, \"audio\": {\"jitter_ms\": 2.958333333333333, \"loss_frac\": 0.0, \"frames_per_s\": 0, \"bitrate_kbps\": null}, \"video\": {\"jitter_ms\": 81.52222222222221, \"loss_frac\": 0.0, \"framerate\": 0, \"frame_width\": 320, \"frame_height\": 180, \"bitrate_kbps\": 4.176}}}\n",
+    "totals": {
+      "packets": {
+        "audio": {
+          "packets_lost": 2991,
+          "packets_received": 26820,
+          "loss_frac": 0.10033209218073866
+        },
+        "video": {
+          "packets_lost": 626,
+          "packets_received": 2850,
+          "loss_frac": 0.18009205983889529
+        }
+      },
+      "n_samples_generated": 504,
+      "rtt_ms_mean": 30.13435281838154,
+      "jitter_ms_mean": {
+        "audio": 3.7003968253968242,
+        "video": 105.65588624338619
+      },
+      "audio_bitrate_kbps_mean": null,
+      "video_bitrate_kbps_mean": 191.58098412698405,
+      "framerate_mean": 28.359126984126984
+    }
+  },
+  "qoe": {
+    "video_bitrate_kbps": 192.0,
+    "framerate": 28.4,
+    "loss_pct": 18.01,
+    "rtt_ms": 30.1,
+    "jitter_ms": 3.7,
+    "packets_lost": 626,
+    "packets_received": 2850,
+    "n_samples": 504,
+    "source": "in-container totals (unbiased)"
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 8072: root refcnt 7 limit 1000 delay 14.9ms  4.18ms loss 100% rate 30Mbit",
+  "scenario_status": {
+    "id": "004076b0-ae08-466c-aa79-9e1c3973c252",
+    "elapsed_s": 608.804887574006,
+    "duration_s": 3758.500554077,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 13184,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 15.066ms 4.994ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 15.066ms 4.994ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 17.861ms 4.629ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 17.861ms 4.629ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 14.867ms 4.180ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 14.867ms 4.180ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 14.867ms 4.180ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 14.867ms 4.180ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 14.867ms 4.180ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 14.867ms 4.180ms rate 30.000mbit"
+    ],
+    "last_loss_command": "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 14.867ms 4.180ms rate 30.000mbit",
+    "playback_lag_s": 0.13,
+    "playback_ticks_skipped": 143,
+    "playback_ticks_total": 40157,
+    "start_time": 1786036608.338285,
+    "speed": 1.0
+  }
+}

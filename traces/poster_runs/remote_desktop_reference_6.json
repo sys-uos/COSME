@@ -1,0 +1,62 @@
+{
+  "name": "remote_desktop_reference_6",
+  "app": "remote_desktop",
+  "arm": "reference",
+  "seed": 404,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "cc": "cubic",
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": 12.0,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 404
+  },
+  "qdisc_before": "qdisc netem 8102: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "real_elapsed_s": 609.5,
+  "job": {
+    "status": "done",
+    "app": "remote_desktop",
+    "started_at": 1786127671.5279129,
+    "duration_s": 600.0,
+    "n_keystrokes": 255,
+    "keystroke_latency_ms_median": 180.3,
+    "keystroke_latency_ms_p95": 182.3,
+    "effective_fps_mean": 5.3,
+    "congestion_control": "cubic",
+    "log_tail": "{\"n_keystrokes\": 255, \"keystroke_attempts\": 255, \"keystroke_timeouts\": 0, \"keystroke_timeout_pct\": 0.0, \"duration_s\": 600.0, \"keystroke_latency_ms_median\": 180.3, \"keystroke_latency_ms_p95\": 182.3, \"effective_fps_mean\": 5.3}\n",
+    "keystroke_attempts": 255,
+    "keystroke_timeouts": 0,
+    "keystroke_timeout_pct": 0.0
+  },
+  "qoe": {
+    "keystroke_latency_ms_median": 180.3,
+    "keystroke_latency_ms_p95": 182.3,
+    "effective_fps_mean": 5.3,
+    "keystroke_timeout_pct": 0.0,
+    "keystroke_attempts": 255,
+    "n_keystrokes": 255
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 8102: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "scenario_status": {
+    "id": "efc43e7c-d3bd-4d05-b3b7-9907ca11ad90",
+    "elapsed_s": 609.0355170780094,
+    "duration_s": 659.99,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 2,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit"
+    ],
+    "last_loss_command": null,
+    "playback_lag_s": 0.094,
+    "playback_ticks_skipped": 0,
+    "playback_ticks_total": 2,
+    "start_time": 1786127668.3029115,
+    "speed": 1.0
+  }
+}

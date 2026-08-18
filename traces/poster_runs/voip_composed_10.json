@@ -1,0 +1,87 @@
+{
+  "name": "voip_composed_10",
+  "app": "voip",
+  "arm": "composed",
+  "seed": 1618,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "cc": null,
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": null,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 1618
+  },
+  "qdisc_before": "qdisc netem 81cc: root refcnt 7 limit 1000 delay 11.4ms  4.68ms rate 30Mbit",
+  "real_elapsed_s": 612.0,
+  "job": {
+    "status": "done",
+    "app": "voip",
+    "started_at": 1786186815.441559,
+    "duration_s": 600.0,
+    "media_plane": "webrtc/aiortc (two-peer)",
+    "video_frames_received": 0,
+    "audio_frames_received": 25078,
+    "log_tail": "{\"n_samples\": 522, \"video_frames_received\": 0, \"audio_frames_received\": 25078, \"totals\": {\"audio\": {\"packets_lost\": 3142, \"packets_received\": 26669, \"loss_frac\": 0.10539733655362114}}, \"rtt_ms_mean\": 27.127460077099837, \"jitter_ms_mean\": {\"audio\": 3.5942289272030665, \"video\": null}, \"audio_bitrate_kbps_mean\": 111.61258237547901, \"video_bitrate_kbps_mean\": null, \"framerate_mean\": null, \"last\": {\"t\": 1786187417.81204, \"app\": \"voip\", \"rtt_ms\": 25.52381206320511, \"audio\": {\"jitter_ms\": 4.291666666666667, \"loss_frac\": 0.0, \"frames_per_s\": 0, \"bitrate_kbps\": 0.72, \"level\": 0.019321564584970474}, \"video\": null}}\n",
+    "totals": {
+      "packets": {
+        "audio": {
+          "packets_lost": 3142,
+          "packets_received": 26669,
+          "loss_frac": 0.10539733655362114
+        }
+      },
+      "n_samples_generated": 522,
+      "rtt_ms_mean": 27.127460077099837,
+      "jitter_ms_mean": {
+        "audio": 3.5942289272030665,
+        "video": null
+      },
+      "audio_bitrate_kbps_mean": 111.61258237547901,
+      "video_bitrate_kbps_mean": null,
+      "framerate_mean": null
+    }
+  },
+  "qoe": {
+    "mos": 3.42,
+    "r_factor": 66.3,
+    "rtt_ms": 27.1,
+    "jitter_ms": 3.6,
+    "loss_pct": 10.54,
+    "audio_bitrate_kbps": 112.0,
+    "packets_lost": 3142,
+    "packets_received": 26669,
+    "n_samples": 522,
+    "source": "in-container totals (unbiased)"
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 81cc: root refcnt 7 limit 1000 delay 9.35ms  2.11ms rate 30Mbit",
+  "scenario_status": {
+    "id": "09e387d0-87c8-4887-91c2-edc24f99e46c",
+    "elapsed_s": 608.9968040510139,
+    "duration_s": 3758.500554077,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 13110,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 9.506ms 2.091ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 9.506ms 2.091ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 9.506ms 2.091ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 9.506ms 2.091ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 9.347ms 2.113ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 9.347ms 2.113ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 9.347ms 2.113ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 9.347ms 2.113ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 10.892ms 3.089ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 10.892ms 3.089ms rate 30.000mbit"
+    ],
+    "last_loss_command": "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 9.347ms 2.113ms rate 30.000mbit",
+    "playback_lag_s": 0.206,
+    "playback_ticks_skipped": 184,
+    "playback_ticks_total": 40173,
+    "start_time": 1786186812.297535,
+    "speed": 1.0
+  }
+}

@@ -1,0 +1,400 @@
+{
+  "n_holdout_drives": 11,
+  "n_validated": 11,
+  "obstruction_only_hamming": {
+    "mean": 0.008429533994093227,
+    "median": 0.007562806268670567
+  },
+  "composed_hamming": {
+    "mean": 0.015651149669377848,
+    "median": 0.014725879501904085
+  },
+  "obstruction_only_dtw_per_sample": {
+    "mean": 0.027494846704825496,
+    "median": 0.03320619250617007
+  },
+  "composed_dtw_per_sample": {
+    "mean": 0.04233840835439819,
+    "median": 0.04851944345344274
+  },
+  "event_count_ratio_obstruction_only": 0.9041984507304197,
+  "event_count_ratio_composed": 1.0403111104933382,
+  "ks_tests": [
+    {
+      "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+      "statistic": 0.0824111652636243,
+      "pvalue": 0.07470918390092175,
+      "n_bursts": 244
+    },
+    {
+      "drive": "measurement-2025-04-29_08-26-multicar-onlyping",
+      "statistic": 0.3018853578853579,
+      "pvalue": 8.819286960652246e-08,
+      "n_bursts": 91
+    },
+    {
+      "drive": "measurement-2025-05-08_07-21-multicar-onlyping",
+      "statistic": 0.19665253277229322,
+      "pvalue": 4.927042092664098e-06,
+      "n_bursts": 167
+    },
+    {
+      "drive": "measurement-2025-05-12_07-58-multicar-onlyping",
+      "statistic": 0.15101675059089506,
+      "pvalue": 1.4766393491728334e-05,
+      "n_bursts": 263
+    },
+    {
+      "drive": "measurement-2025-05-15_07-50-multicar-onlyping",
+      "statistic": 0.39945945945945954,
+      "pvalue": 0.05981586340486902,
+      "n_bursts": 10
+    },
+    {
+      "drive": "measurement-2025-06-05_08-28-multicar-onlyping",
+      "statistic": 0.23494373061586174,
+      "pvalue": 5.044008736612787e-12,
+      "n_bursts": 244
+    },
+    {
+      "drive": "measurement-2025-06-16_08-19-multicar-onlyping",
+      "statistic": 0.24884270044102685,
+      "pvalue": 3.416972426726356e-13,
+      "n_bursts": 239
+    },
+    {
+      "drive": "measurement-2025-07-01_18-44-multicar-onlyping",
+      "statistic": 0.13630888030888028,
+      "pvalue": 0.0030300605510237906,
+      "n_bursts": 175
+    },
+    {
+      "drive": "measurement-2025-07-10_08-22-multicar-onlyping",
+      "statistic": 0.1049683726279471,
+      "pvalue": 0.004432099747056889,
+      "n_bursts": 282
+    },
+    {
+      "drive": "measurement-2025-07-17_18-06-multicar-onlyping",
+      "statistic": 0.10667339867339865,
+      "pvalue": 0.00440531789552742,
+      "n_bursts": 273
+    },
+    {
+      "drive": "measurement-2025-07-30_17-45-multicar-onlyping",
+      "statistic": 0.40115431560592846,
+      "pvalue": 5.3207278791827644e-05,
+      "n_bursts": 31
+    }
+  ],
+  "per_drive": [
+    {
+      "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+      "duration_s": 3733.500554077,
+      "real_event_count": 1388,
+      "obstruction_only_event_count": 1198,
+      "composed_event_count": 1423,
+      "obstruction_only_hamming": 0.02514798446497924,
+      "composed_hamming": 0.03225391723583768,
+      "obstruction_only_dtw": 0.046586345381526104,
+      "composed_dtw": 0.04979919678714859,
+      "n_real_reconfig_bursts": 244,
+      "ks_statistic": 0.0824111652636243,
+      "ks_pvalue": 0.07470918390092175
+    },
+    {
+      "drive": "measurement-2025-04-29_08-26-multicar-onlyping",
+      "duration_s": 4054.475419044,
+      "real_event_count": 1627,
+      "obstruction_only_event_count": 1590,
+      "composed_event_count": 1827,
+      "obstruction_only_hamming": 0.00228636541890802,
+      "composed_hamming": 0.00923178615207413,
+      "obstruction_only_dtw": 0.003205128205128205,
+      "composed_dtw": 0.05152859960552268,
+      "n_real_reconfig_bursts": 91,
+      "ks_statistic": 0.3018853578853579,
+      "ks_pvalue": 8.819286960652246e-08
+    },
+    {
+      "drive": "measurement-2025-05-08_07-21-multicar-onlyping",
+      "duration_s": 3646.942206959,
+      "real_event_count": 1491,
+      "obstruction_only_event_count": 1357,
+      "composed_event_count": 1571,
+      "obstruction_only_hamming": 0.007285559948888657,
+      "composed_hamming": 0.014129653901627117,
+      "obstruction_only_dtw": 0.02412280701754386,
+      "composed_dtw": 0.0512609649122807,
+      "n_real_reconfig_bursts": 167,
+      "ks_statistic": 0.19665253277229322,
+      "ks_pvalue": 4.927042092664098e-06
+    },
+    {
+      "drive": "measurement-2025-05-12_07-58-multicar-onlyping",
+      "duration_s": 3801.602261012,
+      "real_event_count": 2074,
+      "obstruction_only_event_count": 1868,
+      "composed_event_count": 2088,
+      "obstruction_only_hamming": 0.009538089225589226,
+      "composed_hamming": 0.01651936026936027,
+      "obstruction_only_dtw": 0.033657638706284514,
+      "composed_dtw": 0.045753352616355505,
+      "n_real_reconfig_bursts": 263,
+      "ks_statistic": 0.15101675059089506,
+      "ks_pvalue": 1.4766393491728334e-05
+    },
+    {
+      "drive": "measurement-2025-05-15_07-50-multicar-onlyping",
+      "duration_s": 512.197673093,
+      "real_event_count": 305,
+      "obstruction_only_event_count": 297,
+      "composed_event_count": 326,
+      "obstruction_only_hamming": 0.0015814443858724301,
+      "composed_hamming": 0.010835822643940726,
+      "obstruction_only_dtw": 0.0038910505836575876,
+      "composed_dtw": 0.06614785992217899,
+      "n_real_reconfig_bursts": 10,
+      "ks_statistic": 0.39945945945945954,
+      "ks_pvalue": 0.05981586340486902
+    },
+    {
+      "drive": "measurement-2025-06-05_08-28-multicar-onlyping",
+      "duration_s": 3825.779065079,
+      "real_event_count": 1658,
+      "obstruction_only_event_count": 1449,
+      "composed_event_count": 1674,
+      "obstruction_only_hamming": 0.010523371765683772,
+      "composed_hamming": 0.01730893388781866,
+      "obstruction_only_dtw": 0.035798275411549514,
+      "composed_dtw": 0.014632871701071335,
+      "n_real_reconfig_bursts": 244,
+      "ks_statistic": 0.23494373061586174,
+      "ks_pvalue": 5.044008736612787e-12
+    },
+    {
+      "drive": "measurement-2025-06-16_08-19-multicar-onlyping",
+      "duration_s": 3662.687751086,
+      "real_event_count": 1265,
+      "obstruction_only_event_count": 1050,
+      "composed_event_count": 1274,
+      "obstruction_only_hamming": 0.008319045070822458,
+      "composed_hamming": 0.015573296056439548,
+      "obstruction_only_dtw": 0.05458515283842795,
+      "composed_dtw": 0.027838427947598252,
+      "n_real_reconfig_bursts": 239,
+      "ks_statistic": 0.24884270044102685,
+      "ks_pvalue": 3.416972426726356e-13
+    },
+    {
+      "drive": "measurement-2025-07-01_18-44-multicar-onlyping",
+      "duration_s": 2801.873726932,
+      "real_event_count": 1278,
+      "obstruction_only_event_count": 1142,
+      "composed_event_count": 1306,
+      "obstruction_only_hamming": 0.007562806268670567,
+      "composed_hamming": 0.014725879501904085,
+      "obstruction_only_dtw": 0.027113806635747414,
+      "composed_dtw": 0.04851944345344274,
+      "n_real_reconfig_bursts": 175,
+      "ks_statistic": 0.13630888030888028,
+      "ks_pvalue": 0.0030300605510237906
+    },
+    {
+      "drive": "measurement-2025-07-10_08-22-multicar-onlyping",
+      "duration_s": 3468.257411065,
+      "real_event_count": 1944,
+      "obstruction_only_event_count": 1718,
+      "composed_event_count": 1912,
+      "obstruction_only_hamming": 0.011443811720608377,
+      "composed_hamming": 0.01864052476032581,
+      "obstruction_only_dtw": 0.037463976945244955,
+      "composed_dtw": 0.03688760806916427,
+      "n_real_reconfig_bursts": 282,
+      "ks_statistic": 0.1049683726279471,
+      "ks_pvalue": 0.004432099747056889
+    },
+    {
+      "drive": "measurement-2025-07-17_18-06-multicar-onlyping",
+      "duration_s": 4455.601796114,
+      "real_event_count": 1733,
+      "obstruction_only_event_count": 1504,
+      "composed_event_count": 1766,
+      "obstruction_only_hamming": 0.007480474010234312,
+      "composed_hamming": 0.01395996049914714,
+      "obstruction_only_dtw": 0.03320619250617007,
+      "composed_dtw": 0.02131478573031187,
+      "n_real_reconfig_bursts": 273,
+      "ks_statistic": 0.10667339867339865,
+      "ks_pvalue": 0.00440531789552742
+    },
+    {
+      "drive": "measurement-2025-07-30_17-45-multicar-onlyping",
+      "duration_s": 1420.387028054,
+      "real_event_count": 537,
+      "obstruction_only_event_count": 522,
+      "composed_event_count": 604,
+      "obstruction_only_hamming": 0.0015559216547684422,
+      "composed_hamming": 0.008983511454681141,
+      "obstruction_only_dtw": 0.0028129395218002813,
+      "composed_dtw": 0.052039381153305204,
+      "n_real_reconfig_bursts": 31,
+      "ks_statistic": 0.40115431560592846,
+      "ks_pvalue": 5.3207278791827644e-05
+    }
+  ],
+  "delay": {
+    "source": "fitted from 12476570 real Zimmermann RTT samples across 44 drives (see garcia_fit.py)",
+    "n_holdout_drives": 11,
+    "n_validated": 11,
+    "ks_normal_mean_pvalue": 1.1278101461091587e-248,
+    "ks_reconfig_mean_pvalue": 1.8446472972683264e-38,
+    "mean_abs_error_normal_ms": 0.5843384841196076,
+    "mean_abs_error_reconfig_ms": 0.629959872012089,
+    "per_drive": [
+      {
+        "drive": "measurement-2025-04-05_15-57-multicar-onlyping",
+        "n_normal_samples": 44905,
+        "n_reconfig_samples": 2585,
+        "ks_statistic_normal": 0.1540808373232379,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.18104448742746612,
+        "ks_pvalue_reconfig": 2.0291120269951588e-37,
+        "real_normal_mean_ms": 15.06796570537802,
+        "model_normal_mean_ms": 14.554310240948436,
+        "real_reconfig_mean_ms": 17.477872340425535,
+        "model_reconfig_mean_ms": 16.014196558508985
+      },
+      {
+        "drive": "measurement-2025-04-29_08-26-multicar-onlyping",
+        "n_normal_samples": 245363,
+        "n_reconfig_samples": 17395,
+        "ks_statistic_normal": 0.44451689945101747,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.26645587812589827,
+        "ks_pvalue_reconfig": 0.0,
+        "real_normal_mean_ms": 17.997916352506287,
+        "model_normal_mean_ms": 14.53635989410633,
+        "real_reconfig_mean_ms": 18.847806841046275,
+        "model_reconfig_mean_ms": 16.041201244228635
+      },
+      {
+        "drive": "measurement-2025-05-05_18-10-multicar-onlyping",
+        "n_normal_samples": 148366,
+        "n_reconfig_samples": 10039,
+        "ks_statistic_normal": 0.10126309262229893,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.20450244048211974,
+        "ks_pvalue_reconfig": 1.4512959229152243e-184,
+        "real_normal_mean_ms": 13.524188493320572,
+        "model_normal_mean_ms": 14.518626419595632,
+        "real_reconfig_mean_ms": 15.540203207490784,
+        "model_reconfig_mean_ms": 16.0921300997799
+      },
+      {
+        "drive": "measurement-2025-05-15_07-50-multicar-onlyping",
+        "n_normal_samples": 30445,
+        "n_reconfig_samples": 2067,
+        "ks_statistic_normal": 0.13644276564296265,
+        "ks_pvalue_normal": 1.2405911607115268e-247,
+        "ks_statistic_reconfig": 0.2414126753749395,
+        "ks_pvalue_reconfig": 2.9950819164647416e-53,
+        "real_normal_mean_ms": 14.403570372803417,
+        "model_normal_mean_ms": 14.515651580669003,
+        "real_reconfig_mean_ms": 15.940614417029511,
+        "model_reconfig_mean_ms": 16.083659443227198
+      },
+      {
+        "drive": "measurement-2025-06-05_08-28-multicar-onlyping",
+        "n_normal_samples": 231863,
+        "n_reconfig_samples": 15540,
+        "ks_statistic_normal": 0.13526522127290685,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.21126126126126127,
+        "ks_pvalue_reconfig": 9.397809021266435e-305,
+        "real_normal_mean_ms": 14.027660083756354,
+        "model_normal_mean_ms": 14.530735589078505,
+        "real_reconfig_mean_ms": 15.790022522522523,
+        "model_reconfig_mean_ms": 16.079444716795425
+      },
+      {
+        "drive": "measurement-2025-06-05_19-04-multicar-onlyping",
+        "n_normal_samples": 192374,
+        "n_reconfig_samples": 12755,
+        "ks_statistic_normal": 0.06215496896670028,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.1856526852214817,
+        "ks_pvalue_reconfig": 6.630123163088848e-193,
+        "real_normal_mean_ms": 14.585591867923942,
+        "model_normal_mean_ms": 14.529984630011478,
+        "real_reconfig_mean_ms": 16.172826342610744,
+        "model_reconfig_mean_ms": 16.269540584010176
+      },
+      {
+        "drive": "measurement-2025-06-16_18-45-multicar-onlyping",
+        "n_normal_samples": 161610,
+        "n_reconfig_samples": 10752,
+        "ks_statistic_normal": 0.06064599962873585,
+        "ks_pvalue_normal": 8.54751484255692e-259,
+        "ks_statistic_reconfig": 0.1891741071428571,
+        "ks_pvalue_reconfig": 6.163636139071226e-169,
+        "real_normal_mean_ms": 14.427633809788997,
+        "model_normal_mean_ms": 14.52083954661126,
+        "real_reconfig_mean_ms": 15.76371837797619,
+        "model_reconfig_mean_ms": 16.06062358150905
+      },
+      {
+        "drive": "measurement-2025-06-24_08-14-multicar-onlyping",
+        "n_normal_samples": 241341,
+        "n_reconfig_samples": 16349,
+        "ks_statistic_normal": 0.07242863831673857,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.1681448406630375,
+        "ks_pvalue_reconfig": 1.7585869747680636e-202,
+        "real_normal_mean_ms": 14.40838067298967,
+        "model_normal_mean_ms": 14.53681673761835,
+        "real_reconfig_mean_ms": 16.646278059820173,
+        "model_reconfig_mean_ms": 15.984666307491102
+      },
+      {
+        "drive": "measurement-2025-07-08_18-45-multicar-onlyping",
+        "n_normal_samples": 201299,
+        "n_reconfig_samples": 13786,
+        "ks_statistic_normal": 0.05481895091381478,
+        "ks_pvalue_normal": 2.4670703671088715e-263,
+        "ks_statistic_reconfig": 0.1698824894820833,
+        "ks_pvalue_reconfig": 2.192814759242164e-174,
+        "real_normal_mean_ms": 14.594674340160656,
+        "model_normal_mean_ms": 14.53177026772836,
+        "real_reconfig_mean_ms": 16.358008124183954,
+        "model_reconfig_mean_ms": 16.1159311574507
+      },
+      {
+        "drive": "measurement-2025-07-17_18-06-multicar-onlyping",
+        "n_normal_samples": 271642,
+        "n_reconfig_samples": 18375,
+        "ks_statistic_normal": 0.0774401602108658,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.17567346938775508,
+        "ks_pvalue_reconfig": 1.769110093724352e-248,
+        "real_normal_mean_ms": 14.082960477393039,
+        "model_normal_mean_ms": 14.536515023762096,
+        "real_reconfig_mean_ms": 16.143243537414964,
+        "model_reconfig_mean_ms": 16.10318751083291
+      },
+      {
+        "drive": "measurement-2025-07-29_09-05-multicar-onlyping",
+        "n_normal_samples": 227745,
+        "n_reconfig_samples": 15280,
+        "ks_statistic_normal": 0.0628422138795583,
+        "ks_pvalue_normal": 0.0,
+        "ks_statistic_reconfig": 0.16688481675392672,
+        "ks_pvalue_reconfig": 1.904771330634739e-186,
+        "real_normal_mean_ms": 14.483763200070253,
+        "model_normal_mean_ms": 14.532972304928839,
+        "real_reconfig_mean_ms": 16.42032395287958,
+        "model_reconfig_mean_ms": 16.082805042817167
+      }
+    ]
+  }
+}

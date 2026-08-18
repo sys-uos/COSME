@@ -1,0 +1,58 @@
+{
+  "name": "surveillance_reference_7",
+  "app": "surveillance",
+  "arm": "reference",
+  "seed": 512,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "cc": null,
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": 12.0,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 512
+  },
+  "qdisc_before": "qdisc netem 81de: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "real_elapsed_s": 609.6,
+  "job": {
+    "status": "done",
+    "app": "surveillance",
+    "started_at": 1786192349.934881,
+    "duration_s": 600.0,
+    "frames_received": 14253,
+    "freeze_count": 1,
+    "total_freeze_s": 0.25,
+    "longest_freeze_s": 0.25,
+    "mean_bitrate_kbps": 936.3,
+    "log_tail": "{\"frames_received\": 14253, \"freeze_count\": 1, \"total_freeze_s\": 0.25, \"longest_freeze_s\": 0.25, \"mean_bitrate_kbps\": 936.3}\n"
+  },
+  "qoe": {
+    "freeze_count": 1,
+    "total_freeze_s": 0.25,
+    "longest_freeze_s": 0.25,
+    "mean_bitrate_kbps": 936.3,
+    "frames_received": 14253
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 81de: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "scenario_status": {
+    "id": "be8ac235-d873-4016-9d73-b8f55216bdde",
+    "elapsed_s": 609.0841932440235,
+    "duration_s": 659.99,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 2,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit"
+    ],
+    "last_loss_command": null,
+    "playback_lag_s": 0.101,
+    "playback_ticks_skipped": 0,
+    "playback_ticks_total": 2,
+    "start_time": 1786192346.735707,
+    "speed": 1.0
+  }
+}

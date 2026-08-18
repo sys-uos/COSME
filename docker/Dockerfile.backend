@@ -1,0 +1,34 @@
+# Dockerized COSME dashboard backend.
+#
+# The backend orchestrates the OTHER containers (cosme-server/client/probe)
+# rather than doing any shaping itself, so it needs real access to the host's
+# Docker daemon and PID namespace -- see docker-compose.yml's `backend`
+# service (privileged + pid:host + docker.sock mount) for the "why".
+#
+# backend/, models/ (~2.7GB of real measurement data), and traces/ (small,
+# but read-write -- caches new geocode/oblos-sim/fit results) are bind-mounted
+# at /app by docker-compose.yml, NOT copied into the image: this keeps the
+# image small, keeps code edits from requiring a rebuild, and avoids ever
+# baking a snapshot of research data into an image layer.
+FROM docker:27-cli AS dockercli
+
+FROM python:3.12-slim
+# Real docker CLI binary, copied from the official docker:cli image rather
+# than pulling in Docker's full apt repo just for the client -- this is the
+# one thing NOT bind-mounted, since it has to exist before docker-compose
+# has anywhere to mount from.
+COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
+# nsenter ships in util-linux (Debian-essential, already present). `nsenter
+# -n <cmd>` only joins the target's *network* namespace and then executes
+# <cmd> from the CALLER's filesystem -- so /usr/sbin/sysctl must exist in
+# THIS image, not just on some other container/host (confirmed: without
+# procps here, nsenter fails with "failed to execute /usr/sbin/sysctl: No
+# such file or directory").
+RUN apt-get update && apt-get install -y --no-install-recommends procps \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+
+CMD ["uvicorn", "backend.api:app", "--host", "0.0.0.0", "--port", "8731"]

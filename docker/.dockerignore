@@ -1,0 +1,17 @@
+# Real, measured problem this fixes: cosme-client/cosme-server's build (Dockerfile.endpoint,
+# `context: .` relative to THIS file's directory) has no `COPY` instructions at all -- it only
+# apt-get installs packages -- so it needs NOTHING from this directory at build time (media/ and
+# endpoint-scripts/ are bind-mounted at RUNTIME instead, see docker-compose.yml). Without this
+# file, every `docker compose build`/`up --build` still tars up the whole docker/ directory as
+# build context regardless, including media/ (~9.8GB) and osrm-data/ (~14GB) once
+# scripts/prepare_media_assets.sh and scripts/prepare_osrm.sh have populated them -- confirmed
+# live this session: a routine rebuild (only docker-compose.yml + probe/Dockerfile had changed,
+# NOT Dockerfile.endpoint) took ~53s just to send/unpack the context. The REPO-ROOT .dockerignore
+# does NOT cover this -- it's scoped to docker/Dockerfile.backend's own build context (the repo
+# root, `context: ..`), a different directory entirely, so it has no effect on this one.
+media/
+osrm-data/
+# probe/ has its own separate build context (`context: ./probe`) -- not needed by
+# Dockerfile.endpoint either.
+probe/
+.git/

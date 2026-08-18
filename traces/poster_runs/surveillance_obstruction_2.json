@@ -1,0 +1,65 @@
+{
+  "name": "surveillance_obstruction_2",
+  "app": "surveillance",
+  "arm": "obstruction",
+  "seed": 1337,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": 12.0,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 1337
+  },
+  "qdisc_before": "qdisc netem 808d: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "real_elapsed_s": 609.5,
+  "job": {
+    "status": "done",
+    "app": "surveillance",
+    "started_at": 1786045204.4130604,
+    "duration_s": 600.0,
+    "frames_received": 12600,
+    "freeze_count": 125,
+    "total_freeze_s": 63.64,
+    "longest_freeze_s": 2.08,
+    "mean_bitrate_kbps": 852.4,
+    "log_tail": "{\"frames_received\": 12600, \"freeze_count\": 125, \"total_freeze_s\": 63.64, \"longest_freeze_s\": 2.08, \"mean_bitrate_kbps\": 852.4}\n"
+  },
+  "qoe": {
+    "freeze_count": 125,
+    "total_freeze_s": 63.64,
+    "longest_freeze_s": 2.08,
+    "mean_bitrate_kbps": 852.4,
+    "frames_received": 12600
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 808d: root refcnt 7 limit 1000 delay 12ms loss 100% rate 30Mbit",
+  "scenario_status": {
+    "id": "a560c970-dcae-46c0-9e62-ce2d91fbd4f8",
+    "elapsed_s": 608.9357138089981,
+    "duration_s": 659.99,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 2134,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 30.000mbit",
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit"
+    ],
+    "last_loss_command": "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 12.000ms rate 30.000mbit",
+    "playback_lag_s": 0.188,
+    "playback_ticks_skipped": 0,
+    "playback_ticks_total": 1133,
+    "start_time": 1786045201.2548008,
+    "speed": 1.0
+  }
+}

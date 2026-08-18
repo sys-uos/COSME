@@ -1,0 +1,61 @@
+{
+  "name": "remote_desktop_reference_1",
+  "app": "remote_desktop",
+  "arm": "reference",
+  "seed": 42,
+  "duration_s_requested": 600.0,
+  "size_gb": null,
+  "params": {
+    "download_mbps": 329.0,
+    "upload_mbps": 30.0,
+    "const_delay_ms": 12.0,
+    "drive": "measurement-2025-04-03_16-58-multicar-onlyping",
+    "seed": 42
+  },
+  "qdisc_before": "qdisc netem 8050: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "real_elapsed_s": 610.8,
+  "job": {
+    "status": "done",
+    "app": "remote_desktop",
+    "started_at": 1786026176.1797688,
+    "duration_s": 600.0,
+    "n_keystrokes": 255,
+    "keystroke_latency_ms_median": 179.2,
+    "keystroke_latency_ms_p95": 182.9,
+    "effective_fps_mean": 5.3,
+    "congestion_control": "cubic",
+    "log_tail": "{\"n_keystrokes\": 255, \"keystroke_attempts\": 255, \"keystroke_timeouts\": 0, \"keystroke_timeout_pct\": 0.0, \"duration_s\": 600.1, \"keystroke_latency_ms_median\": 179.2, \"keystroke_latency_ms_p95\": 182.9, \"effective_fps_mean\": 5.3}\n",
+    "keystroke_attempts": 255,
+    "keystroke_timeouts": 0,
+    "keystroke_timeout_pct": 0.0
+  },
+  "qoe": {
+    "keystroke_latency_ms_median": 179.2,
+    "keystroke_latency_ms_p95": 182.9,
+    "effective_fps_mean": 5.3,
+    "keystroke_timeout_pct": 0.0,
+    "keystroke_attempts": 255,
+    "n_keystrokes": 255
+  },
+  "app_stats_n_received": 500,
+  "qdisc_after": "qdisc netem 8050: root refcnt 7 limit 1000 delay 12ms rate 30Mbit",
+  "scenario_status": {
+    "id": "af9748a8-1269-484a-9983-cbf5aa958673",
+    "elapsed_s": 609.0608070550079,
+    "duration_s": 659.99,
+    "running": true,
+    "error": null,
+    "backend_mode": "docker",
+    "n_tc_commands_issued": 2,
+    "recent_tc_commands": [
+      "docker exec cosme-server tc qdisc replace dev eth0 root netem delay 12.000ms rate 329.000mbit",
+      "docker exec cosme-client tc qdisc replace dev eth0 root netem delay 12.000ms rate 30.000mbit"
+    ],
+    "last_loss_command": null,
+    "playback_lag_s": 0.091,
+    "playback_ticks_skipped": 0,
+    "playback_ticks_total": 2,
+    "start_time": 1786026172.957507,
+    "speed": 1.0
+  }
+}
