@@ -1,6 +1,6 @@
 # COSME — Composable Orchestrated Starlink Mobility Emulation
 
-COSME emulates a moving Starlink link in real time. It composes four measurement-derived impairment
+COSME emulates a moving Starlink link in real time, presented as Demo at SIGCOMM 2026 in Denver, CO, USA. The demo abstract is available in [https://doi.org/10.1145/3789240.3830288](ACM digital library). It composes four measurement-derived impairment
 models into one time series and plays that back over Docker containers with `tc`/`netem`, so real
 applications experience a modelled LEO link on a real network stack.
 
@@ -49,8 +49,6 @@ five application showcases and every pre-recorded drive, works without it.
   OOM kill during `prepare_osrm.sh`.
 - Optional: `sudo modprobe tcp_bbr` on the host if you want BBR selectable as a congestion-control
   option. Cubic and Reno always work. Containers cannot load kernel modules themselves.
-
-Linux is the primary target. For macOS see [macOS notes](#macos-apple-silicon).
 
 ## Research data
 
@@ -202,6 +200,24 @@ work around it; the workaround becomes unnecessary on aiortc ≥ 1.5.
   We have no data showing such a correlation, so modelling one would be inventing it (§4).
 - Starlink's real drop-front queue management is not emulated; `netem`'s child qdisc is drop-tail
   (§6).
+
+## Citation
+If you use this work in your research, we would be happy for a citation using the following BibTeX:
+```
+@inbook{10.1145/3789240.3830288,
+author = {Lanfer, Eric and Laniewski, Dominic and Zimmermann, Till and Aschenbruck, Nils},
+title = {DEMO: COSME -- Composable Orchestrated Starlink Mobility Emulation},
+year = {2026},
+isbn = {9798400724671},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3789240.3830288},
+abstract = {Low Earth Orbit (LEO) satellite links are pivotal for ubiquitous vehicle connectivity, yet their performance is impacted by a complex interplay of weather, constellation dynamics, and physical obstructions. While individual models for these impairments exist, protocol and application designers lack a unified tool to evaluate behavior under realistic, composed LEO conditions. We present COSME, a route-aware, real-time mobility emulator that integrates multiple impairment models - including obstruction-based loss, constellation-induced jitter, precipitation-driven bandwidth reduction, and packet loss at handovers - into a single framework. By orchestrating Linux network namespaces via tc and netem, COSME enables the high-fidelity playback of merged impairment traces. We demonstrate COSME through five diverse application showcases, highlighting the impact of different congestion control algorithms and transport protocols on LEO connectivity.},
+booktitle = {Proceedings of the ACM SIGCOMM 2026 Conference},
+pages = {2221–2223},
+numpages = {3}
+}
+``` 
 
 ## AI Disclaimer
 Generative AI Disclosure. Claude (Models: Sonnet 5 and Fable 5) was used to assist with the implementation of the demonstration software by generating and suggesting portions of the source code.

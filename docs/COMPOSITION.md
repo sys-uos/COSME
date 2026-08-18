@@ -1,12 +1,6 @@
 # COSME Composition Rules
 
-The paper states that the model outputs are "compounded into a single, unified multivariate time
-series" without defining how. This document defines it, and answers the two questions that
-description leaves open:
-
-1. How are simultaneous obstruction loss and reconfiguration loss combined? (§2)
-2. Is cross-impairment dependence modeled at all — rain interacting with obstruction, handover
-   timing, or route geometry? (§3 for the one dependency that is, §4 for the ones that are not.)
+This document defines the composition pipeline.
 
 The rules below are exactly what `backend/compose.py` implements. Nothing here is aspirational —
 every rule cites the line(s) of code that enforce it.
