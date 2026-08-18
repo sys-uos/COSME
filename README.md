@@ -1,6 +1,6 @@
 # COSME — Composable Orchestrated Starlink Mobility Emulation
 
-COSME emulates a moving Starlink link in real time, presented as Demo at SIGCOMM 2026 in Denver, CO, USA. The demo abstract is available in [https://doi.org/10.1145/3789240.3830288](ACM digital library). It composes four measurement-derived impairment
+COSME emulates a moving Starlink link in real time, presented as Demo at SIGCOMM 2026 in Denver, CO, USA. The demo abstract is available in [ACM digital library](https://doi.org/10.1145/3789240.3830288). It composes four measurement-derived impairment
 models into one time series and plays that back over Docker containers with `tc`/`netem`, so real
 applications experience a modelled LEO link on a real network stack.
 
