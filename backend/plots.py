@@ -595,8 +595,8 @@ def write_impact_table(summary_path: str | None = None, out_path: str | None = N
     * Bulk transfer appears as one row per congestion control. It is NOT measured over the same
       window as the rows above it: a 1 GB download finishes in ~30 s and so only sees the start of
       the drive (~2 % loss) against the 9.6 % the 600 s rows face, because this drive's
-      obstruction-dense stretch starts around t=277 s. That caveat is no longer printed on the
-      poster (the prose under the table was cut); write_impact_note() still renders it if needed.
+      obstruction-dense stretch starts around t=277 s. write_impact_note() renders that caveat
+      for anywhere it is wanted; the poster does not print it.
     * Remote-desktop MEDIAN keystroke latency is excluded: it does not separate (composed sits
       below obstruction-only). The p95 does, which is physically sensible -- the median reflects
       normal operation, the tail reflects loss bursts.
@@ -816,9 +816,8 @@ def build_poster_figures() -> list[str]:
     ]
     try:
         paths.append(write_impact_table())
-        # write_impact_note() is deliberately NOT called: its prose was cut from box 05, and
-        # regenerating it into poster/ would put the text back next to the table. The function
-        # stays for anyone who wants the paragraph elsewhere.
+        # write_impact_note() is not called here: box 05 is the table alone, and generating the
+        # note into poster/ would place that prose back beside it.
     except (FileNotFoundError, RuntimeError) as e:
         print(f"skipping application-impact table: {e}")
     return paths

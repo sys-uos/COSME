@@ -82,13 +82,9 @@ class DockerNetemBackend(NetemBackend):
         # qdisc from an EARLIER scenario run is still on the container, which is the common case:
         # containers are long-lived across many scenario runs, and nothing tears down the qdisc
         # on a scenario finishing naturally (only an explicit Stop does, see Scenario.stop()).
-        # A per-instance "have I already added one this run?" flag (the previous approach) can't
-        # know about qdisc state left by a DIFFERENT Scenario's DockerNetemBackend instance.
-        # Confirmed as a real bug against the live stack: a second scenario's first netem update
-        # raised CalledProcessError inside an un-awaited asyncio.create_task, which silently kills
-        # playback (no further tc commands ever issued, `running` stays stuck True) with nothing
-        # logged -- exactly what looked like "netem never gets reparametrized" from the dashboard.
-        # `tc qdisc replace` is unconditionally correct here: it creates-or-replaces either way.
+        # A per-instance "already added one" flag cannot know about qdisc state left by a
+        # DIFFERENT Scenario's backend instance, and the resulting CalledProcessError kills
+        # playback from inside an un-awaited task. `replace` creates-or-replaces either way.
         container = self.containers[endpoint]
         self._run(container, ["replace", "dev", self.interface, "root"] + params.as_tc_netem_args())
 

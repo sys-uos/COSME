@@ -182,6 +182,27 @@ def surveillance_qoe_from_samples(samples: list[dict]) -> dict:
     }
 
 
+def file_transfer_qoe_from_samples(samples: list[dict]) -> dict:
+    """Live file-transfer QoE from the progress poller's samples.
+
+    Sample shape (file_transfer.py:_post_live_progress): {t, app, bytes, total_bytes,
+    throughput_mbps}. `throughput_mbps` is instantaneous, so the mean over the caller's tail
+    slice is a smoothed current rate.
+
+    No `duration_s`: the caller passes only the last n samples, so elapsed time computed here
+    would describe that window, not the transfer. The finished job supplies it instead.
+    """
+    if not samples:
+        return {}
+    rates = [s.get("throughput_mbps") for s in samples if s.get("throughput_mbps") is not None]
+    if not rates:
+        return {}
+    return {
+        "throughput_mbps": round(statistics.fmean(rates), 1),
+        "n_samples": len(samples),
+    }
+
+
 def remote_desktop_qoe_from_samples(samples: list[dict]) -> dict:
     """Live remote-desktop QoE from the VNC probe's per-second samples.
 

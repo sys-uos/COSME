@@ -14,7 +14,7 @@ by `scripts/prepare_media_assets.sh`).
 
 | Showcase | Transport | Driver | CC-selectable | Measured QoE |
 |---|---|---|---|---|
-| File transfer | TCP | `backend/showcases/file_transfer.py` | Yes | transfer time, throughput, TCP retransmits (curl `-w` + `ss -ti`) |
+| File transfer | TCP | `backend/showcases/file_transfer.py` | Yes | transfer time, throughput, TCP retransmits (curl `-w` + `/proc/net/snmp` delta) |
 | Remote desktop (VNC) | TCP | `backend/showcases/remote_desktop.py` + `docker/probe/vnc_probe.py` | Yes | keystroke→screen-echo round trip (median/p95), effective screen update rate |
 | Video conferencing | UDP (WebRTC/RTP) | `backend/showcases/video_conferencing.py` + `docker/endpoint-scripts/webrtc_peer.py` | N/A | received bitrate, framerate, resolution, RTP loss, jitter, RTCP RTT |
 | VoIP call | UDP (WebRTC/RTP, audio-only) | same, `mode="audio"` (`run_voip_showcase`) | N/A | **measured MOS/R-factor** (from real loss/jitter/RTT), audio bitrate |

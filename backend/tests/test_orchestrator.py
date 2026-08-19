@@ -1,11 +1,8 @@
 """Regression tests for backend/orchestrator.py.
 
-There was previously NO test coverage at all for this module -- a real, live bug shipped and went
-unnoticed as a result: play() could fall arbitrarily far behind real-time schedule (confirmed live:
-178s of accumulated lag on a long-running scenario) with no detection and no recovery, which made
-brief loss bursts statistically invisible on the real link even though they were technically
-"applied". These tests exist specifically to make sure that regressed once and can't silently
-regress again.
+These pin play()'s real-time behaviour: without detection and recovery it can fall arbitrarily
+far behind schedule (seen: 178s of accumulated lag on a long scenario), which makes brief loss
+bursts statistically invisible on the real link even though they were technically applied.
 """
 import asyncio
 import time
@@ -152,12 +149,10 @@ class TestPlayStats:
 
 
 class TestGridUpdatesVectorizedBinning:
-    """`_grid_delay_jitter_updates`/`_grid_bandwidth_updates` used to filter the WHOLE dataframe
-    once per bin (O(n_bins * n_rows) -- 9.4s for just one of these two functions on the longest
-    real drive, 177 real minutes / ~1.06M 10ms-grid rows). Rewritten as a single vectorized
-    `groupby` (0.3s on the same drive, a ~31x speedup, verified numerically identical to the old
-    per-bin-filter implementation on real data before replacing it). These tests pin the exact
-    binning semantics on small, hand-computable data so that speedup can never silently change
+    """`_grid_delay_jitter_updates`/`_grid_bandwidth_updates` bin via a single vectorized
+    `groupby` rather than filtering the whole dataframe once per bin, which is O(n_bins * n_rows)
+    and costs ~9.4s on the longest real drive (~1.06M 10ms-grid rows) against ~0.3s here.
+    These tests pin the exact binning semantics on small, hand-computable data so it cannot change
     behavior."""
 
     def _df(self):

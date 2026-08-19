@@ -81,10 +81,8 @@ def _container_pid(container: str) -> str:
 def _nsenter_cmd(pid: str, *sysctl_args: str) -> list[str]:
     """`nsenter ... sysctl ...`, prefixed with `sudo -n` unless already root.
 
-    Running as root (e.g. the dockerized backend, which runs `privileged:
-    true`) needs no sudo at all -- and there's then no sudoers rule to be
-    missing, which used to make this call fail outright on hosts that never
-    got the (host-only) sudoers setup.
+    Running as root (e.g. the dockerized backend, `privileged: true`) needs no sudo, and so no
+    host sudoers rule either.
     """
     cmd = ["nsenter", "-t", pid, "-n", "/usr/sbin/sysctl", *sysctl_args]
     return cmd if os.geteuid() == 0 else ["sudo", "-n", *cmd]
@@ -205,13 +203,9 @@ def _ensure_sized_asset(container: str, size_bytes: int, source_asset: str = "bi
     already been built reuses the cached file at `MEDIA_DIR/sized/<bytes>.bin`
     instead of regenerating it.
 
-    Writes to `MEDIA_DIR/sized`, which `docker-compose.yml` mounts as a plain
-    disk-backed bind mount (NOT tmpfs -- confirmed live: tmpfs defaults to a
-    50%-of-host-RAM size cap, which silently truncated a 5GB request at 3.9GB
-    on a 7.8GB host and spun this function's shell loop for the full timeout
-    instead of failing cleanly, since the loop had no error check on `cat`).
-    Each `cat` here is now checked explicitly so a real write failure (out of
-    disk space, etc.) raises a clear error immediately instead of looping.
+    Writes to `MEDIA_DIR/sized`, which docker-compose.yml mounts as a disk-backed bind mount,
+    NOT tmpfs: tmpfs caps at 50% of host RAM, which truncates large requests part-way. Each
+    `cat` is checked so a write failure raises immediately instead of looping to the timeout.
     """
     rel_path = f"{SIZED_ASSET_DIR}/{size_bytes}.bin"
     dest = f"{MEDIA_DIR}/{rel_path}"
@@ -327,6 +321,9 @@ def run_file_transfer_showcase(
     total_bytes = _content_length(client_container, url)
 
     _docker_exec(client_container, "rm", "-f", DEST_PATH, RESULT_PATH, check=False)
+    # Baseline on the SERVER: it is the sending side, so it is the end that retransmits.
+    retrans_before = _tcp_retrans_total(server_container)
+
     subprocess.run(
         ["docker", "exec", "-d", client_container, "sh", "-c",
          f"curl -s -o {DEST_PATH} -w '{_CURL_FORMAT}' {url} > {RESULT_PATH}"],
@@ -352,7 +349,13 @@ def run_file_transfer_showcase(
     if stats is None:
         raise ShowcaseError(f"file transfer did not finish within {timeout_s:.0f}s")
 
-    retransmits = _read_retransmits(client_container, SERVER_INTERNAL_IP)
+    retrans_after = _tcp_retrans_total(server_container)
+    if retrans_before is None or retrans_after is None:
+        retransmits = None
+    else:
+        # Negative means the counter wrapped or the container restarted mid-run: report unknown.
+        delta = retrans_after - retrans_before
+        retransmits = delta if delta >= 0 else None
 
     return FileTransferResult(
         duration_s=stats["time_total"],
@@ -364,26 +367,29 @@ def run_file_transfer_showcase(
     )
 
 
-def _read_retransmits(container: str, peer_ip: str) -> int | None:
-    """Best-effort: sums cumulative `retrans` counters from `ss -ti` for connections to `peer_ip`.
+def _tcp_retrans_total(container: str) -> int | None:
+    """Cumulative TCP RetransSegs for `container`'s network namespace.
 
-    `ss -i`'s `retrans:<unacked>/<total>` field's second number is the
-    connection's cumulative `tcpi_total_retrans` counter -- that's what's
-    summed here (total retransmits over the connection's life), not the
-    first number (currently-unacked in-flight retransmits).
+    /proc/net/snmp is per-netns and survives connection teardown, so callers read it either side
+    of a transfer and report the difference. Must be read on the SENDING side: for a download the
+    client only sends ACKs and has nothing to retransmit.
 
-    The transfer's socket is typically already closed by the time this runs
-    (curl exits after completion), so this is best-effort/approximate --
-    documented rather than presented as exact per-flow accounting.
+    Namespace-wide, so it includes any other TCP retransmission in that container during the
+    window. On cosme-server the download is the only meaningful TCP traffic during a showcase.
     """
     try:
-        out = _docker_exec(container, "ss", "-ti", "dst", peer_ip, check=False)
+        out = _docker_exec(container, "sh", "-c", "grep '^Tcp:' /proc/net/snmp", check=False)
     except subprocess.TimeoutExpired:
         return None
-    matches = re.findall(r"retrans:(\d+)/(\d+)", out.stdout)
-    if not matches:
+    lines = [l for l in out.stdout.splitlines() if l.startswith("Tcp:")]
+    if len(lines) < 2:
         return None
-    return sum(int(total) for _, total in matches)
+    keys, values = lines[0].split()[1:], lines[1].split()[1:]
+    raw = dict(zip(keys, values)).get("RetransSegs")
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 if __name__ == "__main__":

@@ -39,9 +39,8 @@
     </div>
   </header>
 
-  <!-- Orphaned-run banner: a scenario/showcase's id previously only ever lived in the browser
-       tab that started it (no persistence) -- reload the page, open a new tab, or come back
-       later, and there was no way to even discover a run was still going, let alone stop it.
+  <!-- Orphaned-run banner: a run's id lives only in the tab that started it, so after a reload
+       or in a second tab there is otherwise no way to discover a running job, let alone stop it.
        GET /api/system/active-run (polled below) finds it regardless of which tab started it. -->
   <div id="orphan-run-banner" class="hidden shrink-0 px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-800">
     <span id="orphan-run-text"></span>
@@ -523,6 +522,15 @@ function updatePlayhead(elapsed, durationS) {
   }
 }
 
+// Width an element will actually be laid out at. clientWidth is 0 inside a display:none
+// ancestor, so walk up to the nearest ancestor that has one. The constant is a last resort.
+function _measuredWidth(el) {
+  for (let n = el; n; n = n.parentElement) {
+    if (n.clientWidth) return n.clientWidth;
+  }
+  return 500;
+}
+
 function drawStrip(elId, window, key, color, opts = {}) {
   const el = document.getElementById(elId);
   el.innerHTML = "";
@@ -535,16 +543,13 @@ function drawStrip(elId, window, key, color, opts = {}) {
   const t0 = opts.domain ? opts.domain.t0 : window[0].timestamp;
   const t1 = opts.domain ? opts.domain.t1 : (window[window.length-1].timestamp || t0+1);
   const span = Math.max(t1-t0, 1);
-  // opts.margin lets a strip line up EXACTLY with a drawLineChart of the same {left,right} margin
-  // (e.g. the run-summary's loss strip vs. its app/delay line charts, which reserve space on the
-  // left for y-axis labels via `margin.left`) -- real bug this fixes: without this, the strip's
-  // bars spanned its container edge-to-edge while the line charts' plotted area was inset by the
-  // margin, so the loss strip visibly extended wider than (and wasn't at the same pixel-per-second
-  // scale as) the throughput/delay charts even when both containers had the same CSS width.
-  // Defaults to no margin, preserving the original edge-to-edge behavior for existing callers
+  // opts.margin lets a strip line up with a drawLineChart of the same {left,right} margin: the
+  // line charts inset their plot area for y-axis labels, so a strip drawn edge-to-edge renders
+  // wider and at a different pixel-per-second scale.
+  // Defaults to no margin, preserving edge-to-edge behaviour for existing callers
   // (the main scenario view's obstruction/reconfig/composed strips) that don't pass one.
   const margin = opts.margin || {left: 0, right: 0};
-  const w = el.clientWidth || 500;
+  const w = opts.width || _measuredWidth(el);
   const plotW = Math.max(w - margin.left - margin.right, 10);
   for (const pt of window) {
     if (pt[key]) {
@@ -567,12 +572,9 @@ function _unitFromLabel(label) {
 
 // "docker exec cosme-client tc qdisc replace dev eth0 root netem loss 100.0000% delay 25.000ms ..."
 // -> "cosme-client: loss 100.0000% delay 25.000ms ..." -- the "docker exec ... tc qdisc replace
-// dev eth0 root" prefix is identical on every single line (only the container name and the actual
-// netem params vary), so keeping it added no information while eating most of the line width.
-// Real bug this fixes: the un-shortened command wrapped across multiple lines at normal panel
-// widths, and for #last-loss-line specifically that pushed the tc-feed log mostly out of view even
-// on a 1920x1080 display. The full, untouched string is still available via each element's
-// `title` attribute on hover.
+// dev eth0 root" prefix is identical on every line, so it costs most of the line width without
+// adding information -- unshortened it wraps and pushes the tc feed out of view. The full string
+// stays available via each element's `title` attribute.
 function _shortTcCmd(cmd) {
   const m = /^docker exec (\S+) tc qdisc replace dev \S+ root (.+)$/.exec(cmd);
   return m ? `${m[1]}: ${m[2]}` : cmd;
@@ -583,7 +585,9 @@ function drawLineChart(svgId, window, series, opts = {}) {
   svg.innerHTML = "";
   if (!window.length) return;
   const ns = "http://www.w3.org/2000/svg";
-  const w = svg.clientWidth || 500, h = +svg.getAttribute("height") || 90;
+  // opts.width pins ONE measured width across a group of charts that must line up (the run
+  // summary's three); measuring per-chart lets them disagree if drawn at different moments.
+  const w = opts.width || _measuredWidth(svg), h = +svg.getAttribute("height") || 90;
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
 
   // A single shared numeric y-axis only makes sense when there's exactly one
@@ -657,9 +661,8 @@ async function pollScenario() {
       jget(`${API}/scenarios/${scenarioId}/status`),
       jget(`${API}/scenarios/${scenarioId}/metrics?window_s=30`),
     ]);
-    // status.error is set if playback died mid-run (e.g. a real docker/tc failure) -- previously
-    // invisible (the badge just kept showing "running" forever with a frozen tc-feed). Surface it
-    // plainly rather than let the dashboard look like it's still working.
+    // status.error is set if playback died mid-run (e.g. a docker/tc failure). Surface it, or the
+    // badge reads "running" forever over a frozen tc feed.
     const connStatus = document.getElementById("conn-status");
     if (status.error) {
       connStatus.textContent = "error";
@@ -673,10 +676,8 @@ async function pollScenario() {
     document.getElementById("sim-clock").textContent = `t = ${status.elapsed_s.toFixed(1)}s / ${status.duration_s.toFixed(1)}s`;
     setScenarioRunningUi(status.running);
 
-    // Green = real `docker exec ... tc` commands are actually shaping traffic; grey = DryRunNetemBackend
-    // (no Docker/containers detected -- commands are only logged, nothing is really shaped). Was
-    // previously just static header text ("dry-run unless Docker is available") with no live indicator
-    // of which one is actually active for THIS run.
+    // Green = real `docker exec ... tc` is shaping traffic; grey = DryRunNetemBackend (no Docker
+    // detected, commands only logged). Which one is live matters per-run, hence a badge.
     const backendBadge = document.getElementById("backend-mode-badge");
     const isDocker = status.backend_mode === "docker";
     backendBadge.textContent = isDocker ? "● docker (live)" : "○ dry-run (no docker)";
@@ -703,12 +704,9 @@ async function pollScenario() {
 
     updatePlayhead(status.elapsed_s, status.duration_s);
 
-    // elapsed_s above is pure wall-clock and says nothing about whether playback has actually
-    // kept up with it -- a real bug (orchestrator.py's play() falling behind schedule under a
-    // fine update_interval_s) let this silently drift for minutes with no visible symptom besides
-    // "loss never seems to happen" (loss bursts are brief, so they're the first thing a growing
-    // lag makes imperceptible; delay/rate still LOOK plausible because they change slowly). Now
-    // surfaced directly instead of staying invisible.
+    // elapsed_s is wall-clock and says nothing about whether playback kept up. Drift has almost
+    // no visible symptom -- brief loss bursts vanish first, while delay/rate still look plausible
+    // because they change slowly -- so it needs its own indicator.
     const lagBadge = document.getElementById("playback-lag-badge");
     const lag = status.playback_lag_s || 0;
     if (lag > 2) {
@@ -786,10 +784,8 @@ async function startScenario(configOverride) {
   try {
     resp = await jpost(`${API}/scenarios`, config);
   } catch (e) {
-    // Most commonly a 409 from the concurrency lock (cosme-client/cosme-server are already
-    // busy running something else) -- previously this just vanished into console.error with
-    // no feedback at all. alert() matches this function's existing style for a precondition
-    // failure (see the "Simulate a custom route first" case above).
+    // Most commonly a 409 from the concurrency lock (the testbed is already busy). alert()
+    // matches this function's style for a precondition failure.
     alert(`Could not start: ${e.message}`);
     return;
   }
@@ -820,11 +816,8 @@ async function stopScenario() {
     }
   } catch (e) { /* best-effort */ }
 
-  // Real bug this fixes: the poll timer was never cleared here, so pollScenario() kept firing
-  // every 1.5s after Stop and kept rendering fresh /status+/metrics responses -- combined with
-  // elapsed_s() previously not freezing server-side either, the charts visibly kept moving even
-  // though playback had genuinely stopped. Both halves are now fixed; clearing the timer here
-  // also stops the wasted polling once the scenario has nothing left to report.
+  // Clear the poll timer: otherwise pollScenario() keeps firing every 1.5s after Stop, the
+  // charts keep moving as if playback were live, and the polling itself is wasted.
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   await pollScenario().catch(() => {});  // one final render so the UI reflects the frozen state exactly, not whatever the last 1.5s-old poll happened to show
 
@@ -1068,21 +1061,19 @@ async function renderRunSummary(app) {
     for (const k of seriesKeys) row[k] = extract(s)[k] || 0;
     return row;
   });
-  // One shared {t0, t1} domain for ALL THREE summary charts (app/loss/delay) -- previously each
-  // chart auto-derived its own span from its own data array's first/last timestamp, which
-  // silently differed by a second or so between the app series (starts exactly at 0) and the
-  // cropped scenario trace slice below (whatever its first surviving decimated sample happens to
-  // be), visibly misaligning the x-axes. Pinning all three to this one domain fixes it.
+  // One shared {t0, t1} domain for all three summary charts. Their data arrays don't start and
+  // end at the same timestamp, so letting each auto-fit its own span misaligns the x-axes.
   const domain = {t0: reshaped[0].timestamp, t1: reshaped[reshaped.length - 1].timestamp};
-  // Forced identical margin across all three summary charts (app metric / loss / delay) so they
-  // render at the same width AND the same pixel-per-second scale -- see drawStrip's and
-  // drawLineChart's own comments for the bug this fixes (the loss strip previously had no margin
-  // at all and rendered edge-to-edge, visibly wider than the line charts' inset plotted area).
+  // Identical margin across all three so they share a pixel-per-second scale: the line charts
+  // inset their plot area for y-axis labels, and a strip without the same inset renders wider.
   const SUMMARY_CHART_MARGIN = {left: 28, right: 2, top: 4, bottom: 11};
+  // One width for all three: the delay chart is drawn two awaits later, so per-chart
+  // measurement can land on different widths within a single render.
+  const SUMMARY_CHART_WIDTH = _measuredWidth(document.getElementById("summary-app-chart"));
   drawLineChart("summary-app-chart", reshaped,
     seriesKeys.map(k => ({key: k, color: SUMMARY_SERIES_META[k].color})),
     {yUnit: seriesKeys.length === 1 ? _unitFromLabel(SUMMARY_SERIES_META[seriesKeys[0]].label) : undefined,
-     domain, margin: SUMMARY_CHART_MARGIN});
+     domain, margin: SUMMARY_CHART_MARGIN, width: SUMMARY_CHART_WIDTH});
 
   lastRunSummaryExport = {app, scenarioId: haveScenario ? scenarioId : null, stats, generatedAt: Date.now()};
 
@@ -1101,11 +1092,12 @@ async function renderRunSummary(app) {
   const {trace} = await jget(`${API}/scenarios/${scenarioId}/trace?max_points=2000`);
   const cropped = trace.filter(p => p.timestamp >= simT0 - 1 && p.timestamp <= simT1 + 1);
   if (cropped.length) {
-    drawStrip("summary-loss-strip", cropped, "loss", "#dc2626", {domain, margin: SUMMARY_CHART_MARGIN});
+    drawStrip("summary-loss-strip", cropped, "loss", "#dc2626",
+              {domain, margin: SUMMARY_CHART_MARGIN, width: SUMMARY_CHART_WIDTH});
     drawLineChart("summary-delay-chart", cropped, [
       {key: "delay_ms", color: "#2563eb", maxVal: 200},
       {key: "jitter_ms", color: "#f97316", maxVal: 200},
-    ], {yUnit: "ms", domain, margin: SUMMARY_CHART_MARGIN});
+    ], {yUnit: "ms", domain, margin: SUMMARY_CHART_MARGIN, width: SUMMARY_CHART_WIDTH});
   } else {
     scenarioBlock.classList.add("hidden");
     noScenario.classList.remove("hidden");
@@ -1336,8 +1328,10 @@ async function runShowcase(bodyOverride) {
     await pollAppQoe();
     await updateLiveView(app);  // one last refresh so the final frame/reading is visible
     if (job.status === "done") {
-      await renderRunSummary(app);
+      // setViewTab FIRST: the charts size themselves from clientWidth, which is 0 while the
+      // panel is display:none.
       setViewTab("summary");
+      await renderRunSummary(app);
     }
   } catch (e) {
     statusEl.textContent = `${app.label} unavailable: ${e.message}`;

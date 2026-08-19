@@ -44,16 +44,12 @@ real server data, reproduced 3/3). So RAW -- slow, but the only encoding
 that actually works with this vncdotool release -- stays the default; do
 not "fix" this by switching encodings without re-verifying against whatever
 vncdotool version is installed at the time, since this was tested against
-1.3.0 specifically. What IS fixed below: individual RFB round trips are
-retried a couple times (`_rfb_call`) before that one sample is skipped,
-rather than one slow/lost round trip (confirmed to happen even under RAW,
-via vncdotool's threaded reactor bridge) crashing the entire run and losing
-every sample collected so far -- combined with backend/showcases/
-remote_desktop.py's new wait_vnc_ready() (closes a real cold-start race
-this session also hit), measured real-run success went from clearly flaky
-in the initial investigation to 8/9 in the final measured batch (one
-initial-connection failure that exhausts before the main loop's per-tick
-recovery kicks in is a known remaining gap -- see remote_desktop.py).
+1.3.0 specifically.
+
+Individual RFB round trips are retried a couple of times (`_rfb_call`) and then that one sample
+is skipped, so a single slow or lost round trip cannot crash the run and lose every sample
+collected so far. An initial-connection failure that exhausts before the main loop's per-tick
+recovery starts is a known remaining gap -- see remote_desktop.py.
 """
 from __future__ import annotations
 
@@ -76,12 +72,10 @@ RFB_CALL_TIMEOUT_S = 5.0
 RFB_CALL_RETRIES = 2
 RFB_CALL_BACKOFF_S = 0.3
 # Worst case a single _rfb_call can cost: every attempt times out, plus backoff between them.
-# Used as the run's overall grace period beyond --duration (see `deadline` below) -- real bug
-# this bounds: with no hard deadline threaded through, a single struggling call could cost up to
-# this much, and NOTHING stopped several such calls from stacking back-to-back, since the only
-# duration check was `while time.monotonic() - start < args.duration` at the top of the OUTER
-# loop -- one blocked iteration (e.g. the inner keystroke-echo-wait loop, which had its own
-# independent keystroke_timeout_s budget never itself bounded by args.duration) could run long
+# Used as the run's grace period beyond --duration (see `deadline` below). Without a deadline
+# threaded through, several struggling calls stack back-to-back: the only duration check is at
+# the top of the OUTER loop, so one blocked iteration (e.g. the keystroke-echo wait, with its own
+# budget not bounded by args.duration) can run long
 # with nothing upstream noticing. Confirmed live: a `--duration 15` run actually took 43.2s once
 # a real, concurrently-shaping scenario's periodic loss bursts (100% loss for ~100-400ms every
 # ~15s -- see backend/models/reconfig_schedule.py) started landing mid-call. This was never
@@ -120,11 +114,9 @@ def _rfb_call(fn, *args, deadline: float | None = None, **kwargs):
     RFB_CALL_RETRIES budget regardless of how much of the overall run's time is left -- see
     RFB_CALL_MAX_COST_S's own comment for the real overrun this prevents.
     """
-    # Seeded with a real exception, not None: if `deadline` has already passed before even the
-    # FIRST attempt (a real, reachable case -- an earlier _rfb_call in the same loop tick can eat
-    # the whole remaining budget), the loop below breaks immediately with zero attempts made. A
-    # bare `raise None` in that case would crash with `TypeError: exceptions must derive from
-    # BaseException` instead of a meaningful error -- caught while writing this fix's own test.
+    # Seeded with a real exception, not None: if `deadline` has already passed before the first
+    # attempt (an earlier _rfb_call in the same tick can eat the whole budget), the loop breaks
+    # with zero attempts and `raise None` would be a TypeError instead of a useful error.
     last_exc: Exception = TimeoutError("deadline already passed before any RFB attempt was made")
     for attempt in range(RFB_CALL_RETRIES + 1):
         if deadline is not None and time.monotonic() >= deadline:
@@ -217,10 +209,8 @@ def main() -> None:
                     keystroke_timeouts += 1
                 next_keystroke_at = time.monotonic() + args.keystroke_interval_s
         except Exception as e:
-            # _rfb_call already retried RFB_CALL_RETRIES times -- this tick's sample is lost,
-            # but one bad round trip must never crash the whole run and lose every sample
-            # collected so far (confirmed live: this was the actual "VNC showcase not
-            # responding" failure mode). Keep going.
+            # _rfb_call already retried: this tick's sample is lost, but one bad round trip must
+            # not crash the run and lose every sample collected so far.
             print(f"[vnc_probe] skipped one sample after RFB error: {e}", file=sys.stderr, flush=True)
 
         now = time.monotonic()

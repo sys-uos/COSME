@@ -10,11 +10,8 @@ Media plane: a direct aiortc WebRTC session (docker/endpoint-scripts/webrtc_peer
   - per-second samples are POSTed to the backend's app-stats endpoint at the
     docker bridge gateway (requires uvicorn on 0.0.0.0, see README.md).
 
-(History: an earlier revision drove this via a self-hosted Jitsi Meet stack
-with a headless-Chromium bot; it reached joined conferences with completed
-ICE/DTLS, but the JVB never sustainably forwarded media in the shared-netns
-container topology. See docs/APPLICATIONS.md for a short account. The Jitsi
-stack has been removed from the repo.)
+A self-hosted Jitsi/headless-Chromium approach was tried and dropped: the JVB never
+sustainably forwarded media in the shared-netns container topology. See docs/APPLICATIONS.md.
 """
 from __future__ import annotations
 

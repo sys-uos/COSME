@@ -235,8 +235,7 @@ async def play(plan: list[ScheduledUpdate], backend: NetemBackend, speed: float 
          values after the fact cannot improve real-time fidelity (the link never experienced them
          at the "right" time regardless) and only makes the lag worse. Loss on/off transitions
          (`ScheduledUpdate.critical`) are NEVER skipped or reordered -- every one is applied, in
-         order, even while catching up, so a modeled loss burst can never simply vanish from the
-         real link the way it did before this fix.
+         order, even while catching up, so a modeled loss burst cannot vanish from the real link.
 
     `stats`, if given, is mutated in place as playback progresses (not just at the end) so a
     caller (e.g. `api.Scenario`) can expose live lag/skip counts via its own status endpoint.
@@ -293,9 +292,8 @@ async def play(plan: list[ScheduledUpdate], backend: NetemBackend, speed: float 
         # backend.apply() shells out (`docker exec ... tc qdisc replace`, tens to
         # hundreds of ms); running it inline would block uvicorn's single-threaded
         # event loop for that long on every update, starving ALL other requests
-        # (health checks, showcase polling, the frontend's own status polls) for
-        # the duration of the scenario -- confirmed live: /api/health hung
-        # indefinitely while a scenario played. Server+client run CONCURRENTLY (see docstring).
+        # (health checks, showcase polling, the frontend's status polls) for the whole
+        # scenario. Server+client run CONCURRENTLY (see docstring).
         await asyncio.gather(*(asyncio.to_thread(backend.apply, u.endpoint, u.params) for u in group))
 
         if stats is not None:

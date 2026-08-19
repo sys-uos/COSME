@@ -47,11 +47,10 @@ def pytest_configure(config):
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item):
-    """Turn "the research data isn't here" into a skip, but only when it really isn't.
+    """Skip, rather than fail, when a test needs absent research data.
 
-    Deliberately narrow: it fires only when `models/` is absent AND the error is a
-    FileNotFoundError pointing inside it. With the data present this hook is inert, so a
-    genuine missing-file bug still fails the suite exactly as before.
+    Narrow by design: fires only when `models/` is absent AND the error is a FileNotFoundError
+    pointing inside it, so a genuine missing-file bug still fails.
     """
     outcome = yield
     if MODELS_DIR.exists():

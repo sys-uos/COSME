@@ -73,22 +73,15 @@ async def lifespan(app: FastAPI):
     """Startup: clears any netem shaping left on cosme-client/cosme-server by a PREVIOUS
     backend process.
 
-    Confirmed live: `SCENARIOS` is an in-memory dict, wiped on every backend restart (crash,
-    `restart: unless-stopped` firing, or a plain manual restart) -- but the `tc qdisc` state
-    itself lives in the CONTAINERS' kernel state, which outlives the backend process that set
-    it. A restart right after this session's OWN concurrency-lock work left the previous
-    scenario's exact last-set delay/loss/rate applied indefinitely, with nothing left to explain
-    it (GET /api/system/active-run correctly reported "nothing running") or stop it through the
-    normal UI. Always start a fresh backend process from a clean, unshaped link. No shutdown
-    action needed (nothing to release cleanly on process exit that the next startup doesn't
-    already handle).
+    `SCENARIOS` is an in-memory dict wiped on every backend restart, but `tc qdisc` state lives
+    in the CONTAINERS' kernel state and outlives the process that set it. Without this, a restart
+    leaves the previous scenario's delay/loss/rate applied indefinitely with nothing in the UI to
+    explain or stop it. Always start a fresh backend from a clean, unshaped link.
     """
     if "pytest" in sys.modules:
-        # Never touch real containers as a side effect of merely importing/collecting the test
-        # suite -- `TestClient(api.app)` fires this same startup event, and this repo's tests
-        # run against a real live Docker stack in some environments (confirmed this session) --
-        # resetting real netem state as an incidental side effect of running pytest would be a
-        # surprising, undesirable interaction with whatever a real user has running concurrently.
+        # Never touch real containers as a side effect of collecting the test suite:
+        # `TestClient(api.app)` fires this same startup event, and the suite may run against a
+        # live stack, where resetting netem would disturb whatever is actually running.
         pass
     elif _docker_available():
         backend = DockerNetemBackend(containers=DOCKER_CONTAINERS)
@@ -224,13 +217,9 @@ class Scenario:
         self._task = asyncio.create_task(self._run())
 
     async def _run(self) -> None:
-        # A bare `asyncio.create_task(self._run())` with the Task object never awaited/checked
-        # means any exception here is otherwise silently discarded -- confirmed as the actual
-        # cause of a real bug: a stale qdisc from a previous scenario run made the first netem
-        # update of a NEW scenario raise CalledProcessError, which killed playback after exactly
-        # one command with `running` stuck True and nothing logged anywhere (looked from the
-        # dashboard like "netem is never reparametrized"). `running`/`error` must always end up
-        # correct even when play() blows up, so the dashboard can show it instead of hanging.
+        # This runs as an un-awaited create_task, so an exception here would otherwise be
+        # discarded: playback dies after one command with `running` stuck True and nothing
+        # logged. `running`/`error` must be correct even when play() raises.
         try:
             await play(self.plan, self.backend, speed=self.config.speed, stats=self.playback_stats)
         except asyncio.CancelledError:
@@ -264,12 +253,9 @@ class Scenario:
             self.backend.reset("server")
         finally:
             self.running = False
-            # Real bug this fixes: elapsed_s() is pure wall-clock math with no dependency on
-            # `running` -- left alone, it keeps climbing (up to duration_s) even after playback
-            # has genuinely stopped, so /status and /metrics kept returning a growing elapsed_s
-            # and a correspondingly sliding metrics window well after Stop was pressed. Looked
-            # from the dashboard exactly like "I pressed Stop but the plots keep moving." Freezing
-            # it here means every poll after this point returns the value AT the moment of
+            # elapsed_s() is wall-clock math independent of `running`, so without freezing it
+            # here it keeps climbing after playback stops and /status keeps reporting a sliding
+            # metrics window. Freezing means every later poll returns the value at the moment of
             # stopping, not wherever wall-clock time has since wandered to.
             self._frozen_elapsed_s = self.elapsed_s()
 
@@ -318,14 +304,11 @@ def _require_free_testbed(kind: str) -> None:
     destination file before starting -- a second concurrent showcase would stomp the first's
     in-flight state).
 
-    Deliberately does NOT cross-block scenario vs. showcase: showcases never touch netem/tc at
-    all (only DockerNetemBackend does, called only from Scenario), so a showcase's real traffic
-    flowing through a CONCURRENTLY RUNNING scenario's live shaping is the core intended demo
-    pattern (see CLAUDE.md's "Run summary" description), not a resource conflict. An earlier
-    version of this check blocked that combination outright, which silently forced users into
-    "showcase with no scenario running" (traffic flows completely unshaped -- no loss/delay/
-    jitter at all) to avoid the 409, exactly matching a real report of "loss conditions are not
-    applied" during a VoIP showcase.
+    Deliberately does NOT cross-block scenario vs. showcase: showcases never touch netem/tc
+    (only DockerNetemBackend does, and only Scenario calls it), so a showcase's traffic flowing
+    through a concurrently running scenario's shaping is the intended demo pattern, not a
+    conflict. Blocking it would push users into running showcases with no scenario, i.e. over a
+    completely unshaped link.
     """
     busy = _active_run()
     if busy is None or busy["kind"] != kind:
@@ -396,11 +379,9 @@ async def create_scenario(config: ScenarioConfig):
     # non-cubic CC) -- for a long real drive (10ms grid, up to ~3 hours) this can take several
     # real seconds. Running it inline would block uvicorn's single-threaded event loop for that
     # whole time, freezing every OTHER concurrent request (health checks, other users' polling,
-    # in-flight showcase progress) right along with this one's own response -- confirmed live:
-    # the longest real drive took ~24s inline before the build_playback_plan() perf fix below,
-    # during which nothing else on the backend could be served. Scenario.__init__ has no `await`
-    # anywhere, so moving it to a worker thread is a safe, purely mechanical fix; scenario.start()
-    # itself (asyncio.create_task) must stay on the event-loop thread, so it's called after.
+    # in-flight showcase progress) for the whole time. Scenario.__init__ has no `await`, so it
+    # moves to a worker thread safely; scenario.start() must stay on the event-loop thread and is
+    # called after.
     scenario = await asyncio.to_thread(Scenario, config)
     SCENARIOS[scenario.id] = scenario
     scenario.start()
@@ -915,6 +896,7 @@ def get_live_frame(app_id: str):
 
 
 _LIVE_QOE_AGGREGATORS = {
+    "file_transfer": qoe_math.file_transfer_qoe_from_samples,
     "voip": qoe_math.voip_qoe_from_samples,
     "video_conferencing": qoe_math.media_qoe_from_samples,
     "surveillance": qoe_math.surveillance_qoe_from_samples,
@@ -955,12 +937,9 @@ def _job_qoe_metrics(app_id: str, job: dict) -> dict:
             "fps": (job.get("frames_received") or 0) / duration,
         }
     if app_id in ("voip", "video_conferencing"):
-        # These used to come purely from live samples, which is the biased path: the per-second
-        # samples are POSTed over the emulated link and go missing exactly when the link is worst
-        # (measured: reported seconds averaged a 3.8% loss duty cycle, the gaps whose samples
-        # never arrived averaged 36.4%). webrtc_peer.py now also reports cumulative
-        # packetsLost/packetsReceived for the whole run, computed in-container, so a finished run
-        # can be scored from a ratio of sums instead of a mean over survivors.
+        # Scored from webrtc_peer.py's in-container cumulative counters, not from live samples.
+        # Live samples cross the emulated link and go missing exactly when it is worst, so
+        # averaging the survivors describes a better link than the one under test.
         totals = job.get("totals") or {}
         fn = qoe_math.voip_qoe_from_totals if app_id == "voip" else qoe_math.media_qoe_from_totals
         return {k: v for k, v in fn(totals).items() if k != "source"}
@@ -976,17 +955,14 @@ def showcase_qoe(app_id: str, n: int = 10):
     metrics: dict = {}
     sources: list[str] = []
 
-    # Which source wins depends on whether a run is IN FLIGHT.
+    # Which source wins depends on whether a run is in flight.
     #
-    # While a run is live, the per-second samples are the only thing describing it, so they win --
-    # a stale previous run's totals would be actively misleading on a live dashboard.
+    # Live: the per-second samples are the only thing describing this run, so they win; a previous
+    # run's totals would be actively misleading.
     #
-    # Once a run has finished, the job's in-container summary wins. Those samples cross the
-    # emulated link and are dropped precisely when it is worst, so averaging the ones that
-    # arrived reports a better link than the one under test (measured: arriving seconds averaged
-    # a 3.8% loss duty cycle, the 34 gaps whose samples never made it averaged 36.4%). Before
-    # this, `metrics.update(live)` ran last and silently overwrote the unbiased values -- which is
-    # why the dashboard showed ~16 surveillance freezes where the probe's own summary said 165.
+    # Finished: the job's in-container summary wins. Live samples cross the emulated link and are
+    # dropped precisely when it is worst, so averaging the arrivals reports a better link than the
+    # one under test.
     running = any(j.get("app") == app_id and j.get("status") == "running"
                   for j in SHOWCASE_JOBS.values())
 
@@ -1016,15 +992,10 @@ def showcase_qoe(app_id: str, n: int = 10):
     }
 
 
-# Aggregation per column when bucketing a composed trace down to a point budget --
-# NOT naive stride sampling (`iloc[::step]`), which silently drops most short-lived
-# loss/reconfig events over a long trace (a reconfig burst is only ~0.1-0.7s wide;
-# over e.g. a 20min drive decimated to 2000 points, a stride of ~60 samples/bucket
-# means the vast majority of bursts have no chance of landing on a kept sample --
-# confirmed live: a long scenario with ~80 real reconfig events showed only 3-6 of
-# them in the trace timeline before this fix). Boolean loss columns use "any" (a
-# bucket is lost if ANY sample in it was lost); delay/jitter use "max" so a brief
-# reconfig delay bump survives decimation instead of being averaged away.
+# Aggregation per column when bucketing a composed trace down to a point budget.
+# NOT stride sampling (`iloc[::step]`): a reconfig burst is only ~0.1-0.7s wide, so at ~60
+# samples/bucket almost none of them land on a kept sample. Boolean loss uses "any" (a bucket is
+# lost if any sample in it was); delay/jitter use "max" so a brief bump survives decimation.
 _TRACE_AGG = {
     "timestamp": "mean",
     "loss": "any",

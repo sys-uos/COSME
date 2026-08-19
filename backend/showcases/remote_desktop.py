@@ -60,10 +60,9 @@ class RemoteDesktopResult:
     effective_fps_mean: float | None
     congestion_control: str
     log_tail: str
-    # A keystroke times out exactly when interactivity is worst, and the probe used to drop
-    # those samples -- so the latency percentiles above describe only round trips that
-    # SUCCEEDED. These make the censoring visible: on a degraded link the timeout rate, not the
-    # latency of the survivors, is what the user experiences.
+    # The latency percentiles above cover only round trips that SUCCEEDED, and a keystroke times
+    # out exactly when interactivity is worst. These make that censoring visible: on a degraded
+    # link the timeout rate, not the survivors' latency, is what the user experiences.
     keystroke_attempts: int = 0
     keystroke_timeouts: int = 0
     keystroke_timeout_pct: float | None = None
@@ -123,10 +122,8 @@ def wait_vnc_ready(host: str = VNC_HOST, port: int = VNC_PORT,
 
     `ensure_vnc_server_running()` starts Xtigervnc/xterms detached with no readiness wait --
     unlike file_transfer.ensure_http_server_running()'s polling pattern, which this mirrors.
-    Without it, a cold start (first showcase run against freshly-(re)started containers) can
-    race the vncdotool probe's connection attempt against Xtigervnc still initializing,
-    contributing to the "VNC showcase not responding" failures confirmed live this session (see
-    docker/probe/vnc_probe.py's module docstring for the rest of that investigation).
+    Without it, a cold start races the vncdotool probe's connection attempt against Xtigervnc
+    still initializing, which surfaces as "VNC showcase not responding".
     """
     for _ in range(retries):
         try:

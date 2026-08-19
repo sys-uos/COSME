@@ -1,12 +1,9 @@
 """Unit tests for backend/models/oblos_live.py.
 
-Overpass-dependent logic is tested against small synthetic fixtures rather
-than the live public API: this session confirmed the query/parsing logic
-against a real response once, but the public Overpass instance is flaky
-under repeated testing (enforces an implicit rate limit -- the same reason
-the original website waits 60s between requests, see module docstring).
-`fetch_route()` against the public OSRM demo server is exercised live since
-that part proved reliable across many calls this session.
+Overpass-dependent logic is tested against small synthetic fixtures rather than the live public
+API, which is flaky under repeated testing (an implicit rate limit -- the same reason the
+original website waits 60s between requests). `fetch_route()` is exercised live against the
+public OSRM demo server, which is reliable enough for that.
 """
 import math
 
@@ -177,7 +174,7 @@ class TestSegmentsToTrace:
 
 
 class TestFetchRouteLive:
-    """Exercised against the public OSRM demo server -- proved reliable this session."""
+    """Exercised live against the public OSRM demo server."""
 
     def test_fetch_route_returns_segments_and_geometry(self):
         route = fetch_route(52.2799, 8.0472, 52.2700, 8.0600, osrm_url=DEV_PUBLIC_OSRM_URL)

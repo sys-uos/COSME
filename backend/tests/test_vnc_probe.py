@@ -6,12 +6,10 @@ pip dependency, see docker/probe/Dockerfile). `vncdotool`/`vncdotool.api` are st
 sys.modules so the real script file can be imported here unmodified, purely to unit-test its
 dependency-free deadline arithmetic (`_rfb_call`) -- no real VNC connection involved.
 
-There was previously NO test coverage at all for this file -- a real, live bug shipped and went
-unnoticed as a result: a single struggling RFB call, retried with no hard deadline, could cost up
-to ~15.6s (RFB_CALL_MAX_COST_S), and nothing bounded how many such calls could stack within one
-run. Confirmed live: a `--duration 15` run actually took 43.2s once a real, concurrently-shaping
-scenario's periodic loss bursts started landing mid-call -- never exercised before showcases could
-run concurrently with an actively-shaping scenario (see the recent concurrency-lock fix).
+These cover the deadline bound: a single struggling RFB call retried with no hard deadline can
+cost up to ~15.6s (RFB_CALL_MAX_COST_S), and nothing otherwise limits how many such calls stack
+within one run -- a `--duration 15` run was measured at 43.2s once a concurrently-shaping
+scenario's loss bursts started landing mid-call.
 """
 import importlib.util
 import sys
@@ -102,9 +100,8 @@ class TestRfbCallDeadline:
         assert calls == []
 
     def test_raising_with_zero_attempts_is_a_real_exception_not_a_bare_raise_none(self):
-        # Regression for a bug caught while writing THIS test: an expired deadline with zero
-        # attempts made used to leave the internal "last exception" as None, and `raise None`
-        # crashes with TypeError instead of a meaningful error.
+        # An expired deadline with zero attempts made must still raise something meaningful:
+        # leaving the internal "last exception" as None makes `raise None` a TypeError.
         def fn():
             raise AssertionError("should never be called")
 
@@ -125,8 +122,8 @@ class TestRfbCallDeadline:
         assert len(calls) == vnc_probe.RFB_CALL_RETRIES + 1
 
     def test_a_shared_stale_deadline_stops_a_later_call_even_after_an_earlier_one_succeeded(self):
-        # Mirrors the real bug: main()'s loop computes ONE `deadline` up front and threads it
-        # through several separate _rfb_call invocations per tick (activity digest, echo
+        # main()'s loop computes ONE `deadline` up front and threads it through several
+        # separate _rfb_call invocations per tick (activity digest, echo
         # baseline, keyPress, echo poll...). A call succeeding does NOT mean the shared deadline
         # is still valid for the NEXT call in the same tick -- each one must check it
         # independently. `vnc_probe.time.sleep` is neutered by the autouse fixture above (it's

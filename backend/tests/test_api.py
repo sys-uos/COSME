@@ -40,14 +40,11 @@ def _clear_active_run_state():
 
 @pytest.fixture(autouse=True)
 def _default_no_real_docker(monkeypatch):
-    """Real bug found and fixed this session: several test classes here (e.g.
-    TestScenarioUpdateInterval, TestCustomObstructionTrace) create real scenarios with NO
-    per-class `_docker_available` mock, on the (previously implicit, never-enforced) assumption
-    that the environment running this file never has real Docker available. That assumption is
-    FALSE in this environment -- confirmed live: running this suite measurably re-shaped the
-    real cosme-client/cosme-server containers (their qdisc handle changed on every run) as a
-    pure side effect of test collection, which could just as easily clobber a real user's
-    actually-running scenario. This file is meant to be the hermetic "not docker" suite --
+    """Several test classes here (e.g. TestScenarioUpdateInterval, TestCustomObstructionTrace)
+    create real scenarios with no per-class `_docker_available` mock, which assumes the
+    environment has no Docker. Where that is false, running this suite re-shapes the real
+    cosme-client/cosme-server containers as a side effect of collection, and can clobber a
+    genuinely running scenario. This file is meant to be the hermetic "not docker" suite --
     `backend/tests/test_docker_integration.py` (a separate file, `-m docker`) is where real
     Docker interaction belongs. Default OFF here, globally; a test that specifically wants real
     (or specifically enabled) Docker behavior still monkeypatches this within its own body/
@@ -394,10 +391,9 @@ class TestShowcaseQoeSourcePrecedence:
 
 class TestTraceDecimation:
     def test_brief_reconfig_bursts_survive_stride_decimation(self):
-        # Regression: naive iloc[::step] stride sampling silently drops most
-        # short-lived loss events over a long trace -- confirmed live, a long
-        # scenario with ~80 real 15s-cadence reconfig bursts showed only 3-6
-        # of them in the trace timeline. Build a synthetic 20min/10ms-grid
+        # Regression: naive iloc[::step] stride sampling drops most short-lived loss events
+        # over a long trace -- ~80 reconfig bursts can reduce to 3-6 in the timeline.
+        # Build a synthetic 20min/10ms-grid
         # trace (120,000 rows) with an 80-event, 100ms-wide reconfig burst
         # every 15s -- exactly the shape a real composed trace has -- and
         # confirm decimating to 2000 points still reports all 80 as lost.
@@ -528,10 +524,9 @@ class TestConcurrencyLock:
         assert second.status_code == 200, second.text
 
     def test_active_run_discovers_a_scenario_this_client_never_polled(self, monkeypatch):
-        # The actual bug report this answers: a scenario's id only ever lived in the browser
-        # tab that created it (no persistence) -- reload the page, or load it from a completely
-        # different "client" (simulated here by never touching `first`'s id again), and there
-        # was previously no way to discover it was still running, let alone stop it.
+        # A scenario's id lives only in the tab that created it, so after a reload or from a
+        # different client (simulated by never touching `first`'s id again) there must still be
+        # a way to discover a running scenario and stop it.
         monkeypatch.setattr(api, "_docker_available", lambda: False)
         first = client.post("/api/scenarios", json={"duration_s": 300, "speed": 1, "seed": 17})
         sid = first.json()["id"]

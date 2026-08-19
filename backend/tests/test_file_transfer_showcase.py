@@ -1,10 +1,8 @@
 """Unit tests for backend/showcases/file_transfer.py.
 
-Docker isn't installed in this sandbox (confirmed elsewhere this session),
-so `subprocess.run`/`_docker_exec` calls are mocked here; this verifies the
-module's own logic (command construction, JSON parsing, retransmit
-regex, error handling) rather than real container behavior, which must be
-verified on a Docker-capable machine (see README.md).
+`subprocess.run`/`_docker_exec` are mocked, so this covers the module's own logic (command
+construction, JSON parsing, counter parsing, error handling) rather than real container
+behaviour, which needs a Docker-capable machine (see README.md).
 """
 import subprocess
 from unittest.mock import MagicMock, patch
@@ -121,23 +119,31 @@ class TestEnsureHttpServerRunning:
             ft.ensure_http_server_running(retries=5, retry_interval_s=0)
 
 
-class TestReadRetransmits:
-    @patch("backend.showcases.file_transfer.subprocess.run")
-    def test_sums_retrans_counters(self, mock_run):
-        # ss's `retrans:<unacked>/<total>` -- the second number is the
-        # cumulative tcpi_total_retrans counter, which is what we want to
-        # report (how many retransmits happened overall on this connection).
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="ESTAB 0 0 10.42.0.11:5000 10.42.0.10:8080 retrans:3/120 rtt:20/5\n",
-            stderr="",
-        )
-        assert ft._read_retransmits("cosme-client", "10.42.0.10") == 120
+class TestTcpRetransTotal:
+    # /proc/net/snmp is two aligned lines: names, then values. RetransSegs is read BY NAME rather
+    # than by column index, so a kernel that adds or reorders a counter cannot silently make this
+    # report some neighbouring field.
+    SNMP = (
+        "Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens AttemptFails "
+        "EstabResets CurrEstab InSegs OutSegs RetransSegs InErrs OutRsts InCsumErrors\n"
+        "Tcp: 1 200 120000 -1 3 487 2 44 0 17346163 442847573 585525 0 2 0\n"
+    )
 
     @patch("backend.showcases.file_transfer.subprocess.run")
-    def test_no_matches_returns_none(self, mock_run):
+    def test_reads_retranssegs_by_name(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout=self.SNMP, stderr="")
+        assert ft._tcp_retrans_total("cosme-server") == 585525
+
+    @patch("backend.showcases.file_transfer.subprocess.run")
+    def test_missing_counter_returns_none(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        assert ft._read_retransmits("cosme-client", "10.42.0.10") is None
+        assert ft._tcp_retrans_total("cosme-server") is None
+
+    @patch("backend.showcases.file_transfer.subprocess.run")
+    def test_header_without_values_returns_none(self, mock_run):
+        header_only = self.SNMP.splitlines()[0] + "\n"
+        mock_run.return_value = MagicMock(returncode=0, stdout=header_only, stderr="")
+        assert ft._tcp_retrans_total("cosme-server") is None
 
 
 class TestLiveProgressHelpers:
@@ -223,7 +229,7 @@ class TestRunFileTransferShowcase:
     @patch("backend.showcases.file_transfer.time.sleep")
     @patch("backend.showcases.file_transfer.requests.post")
     @patch("backend.showcases.file_transfer.subprocess.run")
-    @patch("backend.showcases.file_transfer._read_retransmits", return_value=2)
+    @patch("backend.showcases.file_transfer._tcp_retrans_total", side_effect=[100, 102])
     @patch("backend.showcases.file_transfer.ensure_http_server_running")
     @patch("backend.showcases.file_transfer.set_congestion_control")
     @patch("backend.showcases.file_transfer._docker_exec")
@@ -258,7 +264,7 @@ class TestRunFileTransferShowcase:
     @patch("backend.showcases.file_transfer.time.sleep")
     @patch("backend.showcases.file_transfer.requests.post")
     @patch("backend.showcases.file_transfer.subprocess.run")
-    @patch("backend.showcases.file_transfer._read_retransmits", return_value=None)
+    @patch("backend.showcases.file_transfer._tcp_retrans_total", return_value=None)
     @patch("backend.showcases.file_transfer.ensure_http_server_running")
     @patch("backend.showcases.file_transfer.set_congestion_control")
     @patch("backend.showcases.file_transfer._ensure_sized_asset")
